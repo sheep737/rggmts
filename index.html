@@ -2,31 +2,66 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>不思議のダンジョン風</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スマホ用 不思議のダンジョン風</title>
+
 <style>
-  body {
-    background: black;
-    color: white;
-    font-family: monospace;
-    font-size: 20px;
-  }
+body {
+  margin: 0;
+  background: black;
+  color: white;
+  font-family: monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#game {
+  white-space: pre;
+  font-size: 5vw;
+  line-height: 1;
+  margin-top: 10px;
+}
+
+#pad {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 60px 60px 60px;
+  grid-template-rows: 60px 60px 60px;
+  gap: 5px;
+}
+
+button {
+  font-size: 20px;
+}
 </style>
 </head>
 <body>
 
-<pre id="game"></pre>
+<div id="game"></div>
+
+<div id="pad">
+  <div></div>
+  <button onclick="move(0,-1)">↑</button>
+  <div></div>
+  <button onclick="move(-1,0)">←</button>
+  <div></div>
+  <button onclick="move(1,0)">→</button>
+  <div></div>
+  <button onclick="move(0,1)">↓</button>
+  <div></div>
+</div>
 
 <script>
-const width = 20;
+const width = 15;
 const height = 10;
 
-// マップ生成
 let map = [];
 for (let y = 0; y < height; y++) {
   let row = [];
   for (let x = 0; x < width; x++) {
     if (x === 0 || y === 0 || x === width-1 || y === height-1) {
-      row.push('#'); // 壁
+      row.push('#');
     } else {
       row.push('.');
     }
@@ -34,29 +69,17 @@ for (let y = 0; y < height; y++) {
   map.push(row);
 }
 
-// プレイヤー
 let player = { x: 2, y: 2 };
 map[player.y][player.x] = '@';
 
-// 描画
 function draw() {
   document.getElementById("game").textContent =
-    map.map(row => row.join("")).join("\n");
+    map.map(r => r.join("")).join("\n");
 }
 
-draw();
-
-// キー操作
-document.addEventListener("keydown", e => {
-  let dx = 0, dy = 0;
-  if (e.key === "ArrowUp") dy = -1;
-  if (e.key === "ArrowDown") dy = 1;
-  if (e.key === "ArrowLeft") dx = -1;
-  if (e.key === "ArrowRight") dx = 1;
-
+function move(dx, dy) {
   let nx = player.x + dx;
   let ny = player.y + dy;
-
   if (map[ny][nx] !== '#') {
     map[player.y][player.x] = '.';
     player.x = nx;
@@ -64,7 +87,9 @@ document.addEventListener("keydown", e => {
     map[player.y][player.x] = '@';
     draw();
   }
-});
+}
+
+draw();
 </script>
 
 </body>
