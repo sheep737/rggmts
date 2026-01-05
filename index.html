@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>不思議のダンジョン風</title>
+<style>
+  body {
+    background: black;
+    color: white;
+    font-family: monospace;
+    font-size: 20px;
+  }
+</style>
+</head>
+<body>
+
+<pre id="game"></pre>
+
+<script>
+const width = 20;
+const height = 10;
+
+// マップ生成
+let map = [];
+for (let y = 0; y < height; y++) {
+  let row = [];
+  for (let x = 0; x < width; x++) {
+    if (x === 0 || y === 0 || x === width-1 || y === height-1) {
+      row.push('#'); // 壁
+    } else {
+      row.push('.');
+    }
+  }
+  map.push(row);
+}
+
+// プレイヤー
+let player = { x: 2, y: 2 };
+map[player.y][player.x] = '@';
+
+// 描画
+function draw() {
+  document.getElementById("game").textContent =
+    map.map(row => row.join("")).join("\n");
+}
+
+draw();
+
+// キー操作
+document.addEventListener("keydown", e => {
+  let dx = 0, dy = 0;
+  if (e.key === "ArrowUp") dy = -1;
+  if (e.key === "ArrowDown") dy = 1;
+  if (e.key === "ArrowLeft") dx = -1;
+  if (e.key === "ArrowRight") dx = 1;
+
+  let nx = player.x + dx;
+  let ny = player.y + dy;
+
+  if (map[ny][nx] !== '#') {
+    map[player.y][player.x] = '.';
+    player.x = nx;
+    player.y = ny;
+    map[player.y][player.x] = '@';
+    draw();
+  }
+});
+</script>
+
+</body>
+</html>
