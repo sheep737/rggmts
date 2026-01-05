@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ドット絵 不思議のダンジョン風</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ver:1</title>
 
 <style>
 body {
@@ -29,6 +29,7 @@ canvas {
 
 button {
   font-size: 20px;
+  touch-action: manipulation;
 }
 </style>
 </head>
@@ -75,6 +76,10 @@ for (let y = 0; y < mapH; y++) {
 // プレイヤー
 let player = { x: 2, y: 2 };
 
+document.addEventListener("dblclick", function(e) {
+  e.preventDefault();
+}, { passive: false });
+  
 // 描画
 function draw() {
   for (let y = 0; y < mapH; y++) {
