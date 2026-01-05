@@ -3,24 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>スマホ用 不思議のダンジョン風</title>
+<title>ドット絵 不思議のダンジョン風</title>
 
 <style>
 body {
   margin: 0;
   background: black;
-  color: white;
-  font-family: monospace;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-#game {
-  white-space: pre;
-  font-size: 5vw;
-  line-height: 1;
-  margin-top: 10px;
+canvas {
+  background: black;
+  image-rendering: pixelated;
 }
 
 #pad {
@@ -38,7 +34,7 @@ button {
 </head>
 <body>
 
-<div id="game"></div>
+<canvas id="game"></canvas>
 
 <div id="pad">
   <div></div>
@@ -53,38 +49,61 @@ button {
 </div>
 
 <script>
-const width = 15;
-const height = 10;
+const tileSize = 24;
+const mapW = 15;
+const mapH = 10;
 
+const canvas = document.getElementById("game");
+canvas.width = mapW * tileSize;
+canvas.height = mapH * tileSize;
+const ctx = canvas.getContext("2d");
+
+// マップ
 let map = [];
-for (let y = 0; y < height; y++) {
+for (let y = 0; y < mapH; y++) {
   let row = [];
-  for (let x = 0; x < width; x++) {
-    if (x === 0 || y === 0 || x === width-1 || y === height-1) {
-      row.push('#');
+  for (let x = 0; x < mapW; x++) {
+    if (x === 0 || y === 0 || x === mapW-1 || y === mapH-1) {
+      row.push(1); // 壁
     } else {
-      row.push('.');
+      row.push(0); // 床
     }
   }
   map.push(row);
 }
 
+// プレイヤー
 let player = { x: 2, y: 2 };
-map[player.y][player.x] = '@';
 
+// 描画
 function draw() {
-  document.getElementById("game").textContent =
-    map.map(r => r.join("")).join("\n");
+  for (let y = 0; y < mapH; y++) {
+    for (let x = 0; x < mapW; x++) {
+      if (map[y][x] === 1) {
+        ctx.fillStyle = "#664422"; // 壁
+      } else {
+        ctx.fillStyle = "#111"; // 床
+      }
+      ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize);
+    }
+  }
+
+  // プレイヤー
+  ctx.fillStyle = "#3af";
+  ctx.fillRect(
+    player.x*tileSize + 4,
+    player.y*tileSize + 4,
+    tileSize - 8,
+    tileSize - 8
+  );
 }
 
 function move(dx, dy) {
   let nx = player.x + dx;
   let ny = player.y + dy;
-  if (map[ny][nx] !== '#') {
-    map[player.y][player.x] = '.';
+  if (map[ny][nx] === 0) {
     player.x = nx;
     player.y = ny;
-    map[player.y][player.x] = '@';
     draw();
   }
 }
