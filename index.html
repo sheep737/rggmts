@@ -2,34 +2,23 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ver:1</title>
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ver:1 自動移動専用</title>
 
 <style>
 body {
   margin: 0;
   background: black;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
+  height: 100vh;
 }
 
 canvas {
   background: black;
   image-rendering: pixelated;
-}
-
-#pad {
-  margin-top: 10px;
-  display: grid;
-  grid-template-columns: 60px 60px 60px;
-  grid-template-rows: 60px 60px 60px;
-  gap: 5px;
-}
-
-button {
-  font-size: 20px;
-  touch-action: manipulation;
 }
 </style>
 </head>
@@ -37,19 +26,10 @@ button {
 
 <canvas id="game"></canvas>
 
-<div id="pad">
-  <div></div>
-  <button onclick="move(0,-1)">↑</button>
-  <div></div>
-  <button onclick="move(-1,0)">←</button>
-  <div></div>
-  <button onclick="move(1,0)">→</button>
-  <div></div>
-  <button onclick="move(0,1)">↓</button>
-  <div></div>
-</div>
-
 <script>
+/* =====================
+   基本設定
+===================== */
 const tileSize = 24;
 const mapW = 15;
 const mapH = 10;
@@ -59,12 +39,14 @@ canvas.width = mapW * tileSize;
 canvas.height = mapH * tileSize;
 const ctx = canvas.getContext("2d");
 
-// マップ
+/* =====================
+   マップ生成
+===================== */
 let map = [];
 for (let y = 0; y < mapH; y++) {
   let row = [];
   for (let x = 0; x < mapW; x++) {
-    if (x === 0 || y === 0 || x === mapW-1 || y === mapH-1) {
+    if (x === 0 || y === 0 || x === mapW - 1 || y === mapH - 1) {
       row.push(1); // 壁
     } else {
       row.push(0); // 床
@@ -73,47 +55,73 @@ for (let y = 0; y < mapH; y++) {
   map.push(row);
 }
 
-// プレイヤー
+/* =====================
+   キャラクター
+===================== */
 let player = { x: 2, y: 2 };
 
-document.addEventListener("dblclick", function(e) {
-  e.preventDefault();
-}, { passive: false });
-  
-// 描画
+// 現在の移動方向
+let dir = { x: 1, y: 0 };
+
+/* =====================
+   描画
+===================== */
 function draw() {
   for (let y = 0; y < mapH; y++) {
     for (let x = 0; x < mapW; x++) {
-      if (map[y][x] === 1) {
-        ctx.fillStyle = "#664422"; // 壁
-      } else {
-        ctx.fillStyle = "#111"; // 床
-      }
-      ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize);
+      ctx.fillStyle = map[y][x] === 1 ? "#664422" : "#111";
+      ctx.fillRect(
+        x * tileSize,
+        y * tileSize,
+        tileSize,
+        tileSize
+      );
     }
   }
 
-  // プレイヤー
+  // キャラクター
   ctx.fillStyle = "#3af";
   ctx.fillRect(
-    player.x*tileSize + 4,
-    player.y*tileSize + 4,
+    player.x * tileSize + 4,
+    player.y * tileSize + 4,
     tileSize - 8,
     tileSize - 8
   );
 }
 
-function move(dx, dy) {
-  let nx = player.x + dx;
-  let ny = player.y + dy;
-  if (map[ny][nx] === 0) {
-    player.x = nx;
-    player.y = ny;
-    draw();
+/* =====================
+   自動移動AI
+===================== */
+function autoMove() {
+  let nx = player.x + dir.x;
+  let ny = player.y + dir.y;
+
+  // 次が壁なら方向転換
+  if (
+    nx < 0 || nx >= mapW ||
+    ny < 0 || ny >= mapH ||
+    map[ny][nx] === 1
+  ) {
+    const dirs = [
+      { x: 1, y: 0 },
+      { x: -1, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: -1 }
+    ];
+    dir = dirs[Math.floor(Math.random() * dirs.length)];
+    return;
   }
+
+  player.x = nx;
+  player.y = ny;
+  draw();
 }
 
+/* =====================
+   メインループ
+===================== */
 draw();
+setInterval(autoMove, 300); // 移動速度(ms)
 </script>
 
 </body>
