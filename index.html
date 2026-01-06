@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ver:1 自動移動専用</title>
+<title>ver:1 敵表示</title>
 
 <style>
 body {
@@ -40,17 +40,15 @@ canvas.height = mapH * tileSize;
 const ctx = canvas.getContext("2d");
 
 /* =====================
-   マップ生成
+   マップ
 ===================== */
 let map = [];
 for (let y = 0; y < mapH; y++) {
   let row = [];
   for (let x = 0; x < mapW; x++) {
-    if (x === 0 || y === 0 || x === mapW - 1 || y === mapH - 1) {
-      row.push(1); // 壁
-    } else {
-      row.push(0); // 床
-    }
+    row.push(
+      x === 0 || y === 0 || x === mapW - 1 || y === mapH - 1 ? 1 : 0
+    );
   }
   map.push(row);
 }
@@ -58,10 +56,17 @@ for (let y = 0; y < mapH; y++) {
 /* =====================
    キャラクター
 ===================== */
-let player = { x: 2, y: 2 };
+let player = {
+  x: 2,
+  y: 2,
+  dir: { x: 1, y: 0 }
+};
 
-// 現在の移動方向
-let dir = { x: 1, y: 0 };
+let enemy = {
+  x: mapW - 3,
+  y: mapH - 3,
+  dir: { x: -1, y: 0 }
+};
 
 /* =====================
    描画
@@ -70,16 +75,11 @@ function draw() {
   for (let y = 0; y < mapH; y++) {
     for (let x = 0; x < mapW; x++) {
       ctx.fillStyle = map[y][x] === 1 ? "#664422" : "#111";
-      ctx.fillRect(
-        x * tileSize,
-        y * tileSize,
-        tileSize,
-        tileSize
-      );
+      ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
     }
   }
 
-  // キャラクター
+  // プレイヤー
   ctx.fillStyle = "#3af";
   ctx.fillRect(
     player.x * tileSize + 4,
@@ -87,16 +87,24 @@ function draw() {
     tileSize - 8,
     tileSize - 8
   );
+
+  // 敵
+  ctx.fillStyle = "#f33";
+  ctx.fillRect(
+    enemy.x * tileSize + 4,
+    enemy.y * tileSize + 4,
+    tileSize - 8,
+    tileSize - 8
+  );
 }
 
 /* =====================
-   自動移動AI
+   自動移動処理
 ===================== */
-function autoMove() {
-  let nx = player.x + dir.x;
-  let ny = player.y + dir.y;
+function autoMove(chara) {
+  let nx = chara.x + chara.dir.x;
+  let ny = chara.y + chara.dir.y;
 
-  // 次が壁なら方向転換
   if (
     nx < 0 || nx >= mapW ||
     ny < 0 || ny >= mapH ||
@@ -108,20 +116,25 @@ function autoMove() {
       { x: 0, y: 1 },
       { x: 0, y: -1 }
     ];
-    dir = dirs[Math.floor(Math.random() * dirs.length)];
+    chara.dir = dirs[Math.floor(Math.random() * dirs.length)];
     return;
   }
 
-  player.x = nx;
-  player.y = ny;
-  draw();
+  chara.x = nx;
+  chara.y = ny;
 }
 
 /* =====================
    メインループ
 ===================== */
+function loop() {
+  autoMove(player);
+  autoMove(enemy);
+  draw();
+}
+
 draw();
-setInterval(autoMove, 300); // 移動速度(ms)
+setInterval(loop, 300);
 </script>
 
 </body>
