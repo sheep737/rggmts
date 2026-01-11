@@ -2,10 +2,8 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ver:3</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ver:4</title>
 <style>
 body {
   margin: 0;
@@ -23,25 +21,16 @@ canvas {
 </style>
 </head>
 <body>
-
 <canvas id="game"></canvas>
-
 <script>
-/* =====================
-   基本設定
-===================== */
 const tileSize = 24;
 const mapW = 15;
 const mapH = 10;
-
 const canvas = document.getElementById("game");
 canvas.width = mapW * tileSize;
 canvas.height = mapH * tileSize;
 const ctx = canvas.getContext("2d");
 
-/* =====================
-   マップ
-===================== */
 let map = [];
 for (let y = 0; y < mapH; y++) {
   let row = [];
@@ -53,25 +42,17 @@ for (let y = 0; y < mapH; y++) {
   map.push(row);
 }
 
-/* =====================
-   キャラクター
-===================== */
 let player = {
   x: 2,
   y: 2,
   dir: { x: 1, y: 0 }
 };
 
-let enemy = {
-  x: mapW - 3,
-  y: mapH - 3,
-  dir: { x: -1, y: 0 },
-  alive: true
-};
-
-/* =====================
-   描画
-===================== */
+let enemies = [
+  { x: mapW - 3, y: mapH - 3, dir: { x: -1, y: 0 }, alive: true },
+  { x: mapW - 3, y: 2,        dir: { x: -1, y: 0 }, alive: true },
+  { x: 2,        y: mapH - 3, dir: { x: 1,  y: 0 }, alive: true }
+];
 
 function playerAttack(player, enemy) {
   const dx = Math.abs(player.x - enemy.x);
@@ -104,7 +85,6 @@ function draw() {
     }
   }
 
-  // プレイヤー
   ctx.fillStyle = "#3af";
   ctx.fillRect(
     player.x * tileSize + 4,
@@ -113,21 +93,20 @@ function draw() {
     tileSize - 8
   );
 
-if (enemy.alive) {
-  ctx.fillStyle = "#f33";
-  ctx.fillRect(
-    enemy.x * tileSize + 4,
-    enemy.y * tileSize + 4,
-    tileSize - 8,
-    tileSize - 8
-  );
-}
+enemies.forEach(enemy => {
+  if (enemy.alive) {
+    ctx.fillStyle = "#f33";
+    ctx.fillRect(
+      enemy.x * tileSize + 4,
+      enemy.y * tileSize + 4,
+      tileSize - 8,
+      tileSize - 8
+    );
+  }
+});
 
 }
 
-/* =====================
-   自動移動処理
-===================== */
 function autoMove(chara) {
   let nx = chara.x + chara.dir.x;
   let ny = chara.y + chara.dir.y;
@@ -151,35 +130,34 @@ function autoMove(chara) {
   chara.y = ny;
 }
 
-/* =====================
-   メインループ
-===================== */
 let timer = null;
 
 function loop() {
   autoMove(player);
 
-  if (enemy.alive) {
-    // 敵は追いかけてから動く
+  enemies.forEach(enemy => {
+    if (!enemy.alive) return;
+
     chaseEnemy(enemy, player);
     autoMove(enemy);
 
-    // プレイヤーの自動攻撃
     if (playerAttack(player, enemy)) {
       enemy.alive = false;
-      draw();
-      clearInterval(timer);
-      alert("敵を倒した！");
-      return;
     }
 
-    // 接触したら負け
     if (player.x === enemy.x && player.y === enemy.y) {
       draw();
       clearInterval(timer);
       alert("ゲームオーバー");
-      return;
     }
+  });
+
+  const allDead = enemies.every(e => !e.alive);
+  if (allDead) {
+    draw();
+    clearInterval(timer);
+    alert("敵を全滅させた！");
+    return;
   }
 
   draw();
@@ -187,7 +165,7 @@ function loop() {
 
 draw();
 timer = setInterval(loop, 300);
-</script>
 
+</script>
 </body>
 </html>
