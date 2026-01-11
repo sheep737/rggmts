@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Simple Tower Defense</title>
+<title>TD ver:1</title>
 <style>
   body {
     text-align: center;
@@ -28,6 +28,17 @@ const enemies = [];
 const towers = [];
 const bullets = [];
 
+const towerSpots = [
+  { x: 150, y: 100, used: false },
+  { x: 150, y: 300, used: false },
+  { x: 300, y: 100, used: false },
+  { x: 300, y: 300, used: false },
+  { x: 450, y: 100, used: false },
+  { x: 450, y: 300, used: false },
+  { x: 600, y: 150, used: false },
+  { x: 600, y: 250, used: false }
+];
+
 let frame = 0;
 
 // 敵生成
@@ -43,11 +54,22 @@ function spawnEnemy() {
 // タワー設置
 canvas.addEventListener("click", e => {
   const rect = canvas.getBoundingClientRect();
-  towers.push({
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top,
-    range: 120,
-    cooldown: 0
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+
+  towerSpots.forEach(spot => {
+    const dist = Math.hypot(spot.x - clickX, spot.y - clickY);
+
+    // 半径20px以内 & 未使用なら設置
+    if (dist < 20 && !spot.used) {
+      towers.push({
+        x: spot.x,
+        y: spot.y,
+        range: 120,
+        cooldown: 0
+      });
+      spot.used = true;
+    }
   });
 });
 
@@ -126,6 +148,15 @@ function draw() {
     ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
     ctx.fill();
   });
+
+// 描画処理の中（draw関数）
+towerSpots.forEach(s => {
+  ctx.strokeStyle = s.used ? "#aaa" : "#00aa00";
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, 15, 0, Math.PI * 2);
+  ctx.stroke();
+});
+
 }
 
 // ゲームループ
