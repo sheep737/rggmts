@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ver:6</title>
+<title>ver:7</title>
 <style>
 body {
   margin: 0;
@@ -51,7 +51,8 @@ const start = getRandomEmptyCell();
 let player = {
   x: start.x,
   y: start.y,
-  dir: { x: 1, y: 0 }
+  dir: { x: 1, y: 0 },
+  attackTimer: 0
 };
 
 function getRandomEmptyCell() {
@@ -94,6 +95,7 @@ function chaseEnemy(enemy, player) {
 }
 
 function draw() {
+
   for (let y = 0; y < mapH; y++) {
     for (let x = 0; x < mapW; x++) {
       ctx.fillStyle = map[y][x] === 1 ? "#664422" : "#111";
@@ -108,6 +110,21 @@ function draw() {
     tileSize - 8,
     tileSize - 8
   );
+
+// 攻撃アニメーション
+if (player.attackTimer > 0) {
+  ctx.fillStyle = "#fff";
+
+  const ax = player.x + player.dir.x;
+  const ay = player.y + player.dir.y;
+
+  ctx.fillRect(
+    ax * tileSize + 8,
+    ay * tileSize + 8,
+    tileSize - 16,
+    tileSize - 16
+  );
+}
 
 enemies.forEach(enemy => {
   if (enemy.alive) {
@@ -157,9 +174,16 @@ function loop() {
     chaseEnemy(enemy, player);
     autoMove(enemy);
 
-    if (playerAttack(player, enemy)) {
-      enemy.alive = false;
-    }
+if (playerAttack(player, enemy)) {
+
+  player.dir = {
+    x: Math.sign(enemy.x - player.x),
+    y: Math.sign(enemy.y - player.y)
+  };
+
+  enemy.alive = false;
+  player.attackTimer = 3;
+}
 
     if (player.x === enemy.x && player.y === enemy.y) {
       draw();
@@ -177,6 +201,11 @@ function loop() {
   }
 
   draw();
+
+  if (player.attackTimer > 0) {
+  player.attackTimer--;
+}
+
 }
 
 draw();
