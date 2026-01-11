@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ver:1 敵表示</title>
+<title>ver:2</title>
 
 <style>
 body {
@@ -71,6 +71,19 @@ let enemy = {
 /* =====================
    描画
 ===================== */
+
+function chaseEnemy(enemy, player) {
+  const dx = player.x - enemy.x;
+  const dy = player.y - enemy.y;
+
+  // 距離が大きい方向を優先
+  if (Math.abs(dx) > Math.abs(dy)) {
+    enemy.dir = { x: Math.sign(dx), y: 0 };
+  } else {
+    enemy.dir = { x: 0, y: Math.sign(dy) };
+  }
+}
+
 function draw() {
   for (let y = 0; y < mapH; y++) {
     for (let x = 0; x < mapW; x++) {
@@ -127,14 +140,27 @@ function autoMove(chara) {
 /* =====================
    メインループ
 ===================== */
+let timer = null;
+
 function loop() {
   autoMove(player);
+
+  // 敵は追いかけてから動く
+  chaseEnemy(enemy, player);
   autoMove(enemy);
+
+  if (player.x === enemy.x && player.y === enemy.y) {
+    draw();
+    clearInterval(timer);
+    alert("ゲームオーバー");
+    return;
+  }
+
   draw();
 }
 
 draw();
-setInterval(loop, 300);
+timer = setInterval(loop, 300);
 </script>
 
 </body>
