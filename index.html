@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TD ver:1</title>
+<title>TD ver:3</title>
 <style>
   body {
     text-align: center;
@@ -15,12 +15,12 @@
 </style>
 </head>
 <body>
-
 <h2>シンプル タワーディフェンス</h2>
 <p>クリックでタワーを設置</p>
+<button id="startBtn">スタート</button>
 <canvas id="game" width="800" height="400"></canvas>
-
 <script>
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -40,16 +40,7 @@ const towerSpots = [
 ];
 
 let frame = 0;
-
-// 敵生成
-function spawnEnemy() {
-  enemies.push({
-    x: 0,
-    y: 200,
-    hp: 3,
-    speed: 1
-  });
-}
+let gameStarted = false;
 
 // タワー設置
 canvas.addEventListener("click", e => {
@@ -73,8 +64,27 @@ canvas.addEventListener("click", e => {
   });
 });
 
+const startBtn = document.getElementById("startBtn");
+
+startBtn.addEventListener("click", () => {
+  gameStarted = true;
+  startBtn.disabled = true;
+});
+
+// 敵生成
+function spawnEnemy() {
+  enemies.push({
+    x: 0,
+    y: 200,
+    hp: 3,
+    speed: 1
+  });
+}
+
 // 更新処理
 function update() {
+  if (!gameStarted) return; // ← スタート前は何もしない
+
   frame++;
 
   if (frame % 120 === 0) spawnEnemy();
@@ -101,18 +111,20 @@ function update() {
     }
   });
 
-  // 弾移動
+  // 弾移動（安全版）
   bullets.forEach(b => {
     const dx = b.target.x - b.x;
     const dy = b.target.y - b.y;
     const dist = Math.hypot(dx, dy);
-    b.x += dx / dist * 4;
-    b.y += dy / dist * 4;
 
     if (dist < 5) {
       b.target.hp--;
       bullets.splice(bullets.indexOf(b), 1);
+      return;
     }
+
+    b.x += dx / dist * 4;
+    b.y += dy / dist * 4;
   });
 
   // 敵削除
@@ -157,6 +169,17 @@ towerSpots.forEach(s => {
   ctx.stroke();
 });
 
+if (!gameStarted) {
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "white";
+  ctx.font = "28px sans-serif";
+  ctx.fillText("準備フェーズ", 320, 170);
+  ctx.font = "20px sans-serif";
+  ctx.fillText("タワーを配置してスタートを押してください", 180, 210);
+}
+
 }
 
 // ゲームループ
@@ -167,7 +190,7 @@ function loop() {
 }
 
 loop();
-</script>
 
+</script>
 </body>
 </html>
