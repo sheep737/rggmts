@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>TD ver:3</title>
+<title>TD ver:4</title>
 <style>
   body {
     text-align: center;
@@ -41,6 +41,10 @@ const towerSpots = [
 
 let frame = 0;
 let gameStarted = false;
+let wave = 1;
+let enemiesToSpawn = 0;
+let spawnCooldown = 0;
+let waveActive = false;
 
 // タワー設置
 canvas.addEventListener("click", e => {
@@ -68,6 +72,8 @@ const startBtn = document.getElementById("startBtn");
 
 startBtn.addEventListener("click", () => {
   gameStarted = true;
+  waveActive = true;
+  enemiesToSpawn = wave * 5; // Waveごとに敵数増加
   startBtn.disabled = true;
 });
 
@@ -83,12 +89,20 @@ function spawnEnemy() {
 
 // 更新処理
 function update() {
-  if (!gameStarted) return; // ← スタート前は何もしない
+  if (!gameStarted) return;
 
-  frame++;
+  // Wave中のみ敵生成
+if (waveActive && enemiesToSpawn > 0) {
+  if (spawnCooldown <= 0) {
+    spawnEnemy();
+    enemiesToSpawn--;
+    spawnCooldown = 60;
+  } else {
+    spawnCooldown--;
+  }
+}
 
-  if (frame % 120 === 0) spawnEnemy();
-
+if (waveActive) {
   // 敵移動
   enemies.forEach(e => e.x += e.speed);
 
@@ -110,9 +124,15 @@ function update() {
       t.cooldown = 60;
     }
   });
+}
 
   // 弾移動（安全版）
   bullets.forEach(b => {
+    if (!enemies.includes(b.target)) {
+      bullets.splice(bullets.indexOf(b), 1);
+      return;
+    }
+
     const dx = b.target.x - b.x;
     const dy = b.target.y - b.y;
     const dist = Math.hypot(dx, dy);
@@ -132,6 +152,14 @@ function update() {
     if (enemies[i].hp <= 0 || enemies[i].x > 800) {
       enemies.splice(i, 1);
     }
+  }
+
+  // ★ Waveクリア判定
+  if (waveActive && enemies.length === 0 && enemiesToSpawn === 0) {
+    waveActive = false;
+    wave++;
+    startBtn.disabled = false;
+    startBtn.textContent = `Wave ${wave} 開始`;
   }
 }
 
@@ -178,6 +206,30 @@ if (!gameStarted) {
   ctx.fillText("準備フェーズ", 320, 170);
   ctx.font = "20px sans-serif";
   ctx.fillText("タワーを配置してスタートを押してください", 180, 210);
+}
+
+ctx.fillStyle = "black";
+ctx.font = "16px sans-serif";
+ctx.fillText(`Wave: ${wave}`, 10, 20);
+
+if (waveActive && enemies.length === 0 && enemiesToSpawn > 0) {
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "white";
+  ctx.font = "28px sans-serif";
+  ctx.fillText(`Wave ${wave} 開始`, 320, 200);
+}
+
+if (!waveActive && gameStarted) {
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "white";
+  ctx.font = "28px sans-serif";
+  ctx.fillText(`Wave ${wave - 1} クリア！`, 300, 180);
+  ctx.font = "20px sans-serif";
+  ctx.fillText("次のWaveを開始してください", 260, 220);
 }
 
 }
