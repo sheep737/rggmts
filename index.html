@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ver:7</title>
+<title>ver:8</title>
 <style>
 body {
   margin: 0;
@@ -52,8 +52,36 @@ let player = {
   x: start.x,
   y: start.y,
   dir: { x: 1, y: 0 },
-  attackTimer: 0
+  cooldown: 0
 };
+
+let bullets = [];
+
+function moveBullets() {
+  bullets.forEach(b => {
+    if (!b.alive) return;
+
+    b.x += b.dir.x;
+    b.y += b.dir.y;
+
+if (
+  b.x < 0 || b.x >= mapW ||
+  b.y < 0 || b.y >= mapH ||
+  map[b.y][b.x] === 1
+) {
+  b.alive = false;
+}
+
+    enemies.forEach(e => {
+      if (e.alive && e.x === b.x && e.y === b.y) {
+        e.alive = false;
+        b.alive = false;
+      }
+    });
+  });
+
+  bullets = bullets.filter(b => b.alive);
+}
 
 function getRandomEmptyCell() {
   while (true) {
@@ -71,15 +99,28 @@ function getRandomEmptyCell() {
   }
 }
 
-function playerAttack(player, enemy) {
-  const dx = Math.abs(player.x - enemy.x);
-  const dy = Math.abs(player.y - enemy.y);
+function tryShoot(player, enemy) {
+  if (player.cooldown > 0) return;
 
-  // 上下左右に隣接していたら攻撃成功
-  if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-    return true;
+  const dx = enemy.x - player.x;
+  const dy = enemy.y - player.y;
+
+  // 上下左右にいる時だけ撃つ
+  if (dx === 0 || dy === 0) {
+    player.dir = {
+      x: Math.sign(dx),
+      y: Math.sign(dy)
+    };
+
+    bullets.push({
+      x: player.x + player.dir.x,
+      y: player.y + player.dir.y,
+      dir: { ...player.dir },
+      alive: true
+    });
+
+    player.cooldown = 5; // 発射間隔
   }
-  return false;
 }
 
 function chaseEnemy(enemy, player) {
@@ -138,6 +179,17 @@ enemies.forEach(enemy => {
   }
 });
 
+// 弾
+ctx.fillStyle = "#ff0";
+bullets.forEach(b => {
+  ctx.fillRect(
+    b.x * tileSize + 10,
+    b.y * tileSize + 10,
+    tileSize - 20,
+    tileSize - 20
+  );
+});
+
 }
 
 function autoMove(chara) {
@@ -166,7 +218,10 @@ function autoMove(chara) {
 let timer = null;
 
 function loop() {
+
   autoMove(player);
+
+  if (player.cooldown > 0) player.cooldown--;
 
   enemies.forEach(enemy => {
     if (!enemy.alive) return;
@@ -174,16 +229,7 @@ function loop() {
     chaseEnemy(enemy, player);
     autoMove(enemy);
 
-if (playerAttack(player, enemy)) {
-
-  player.dir = {
-    x: Math.sign(enemy.x - player.x),
-    y: Math.sign(enemy.y - player.y)
-  };
-
-  enemy.alive = false;
-  player.attackTimer = 3;
-}
+    tryShoot(player, enemy);
 
     if (player.x === enemy.x && player.y === enemy.y) {
       draw();
@@ -191,6 +237,8 @@ if (playerAttack(player, enemy)) {
       alert("ゲームオーバー");
     }
   });
+
+  moveBullets();
 
   const allDead = enemies.every(e => !e.alive);
   if (allDead) {
@@ -201,11 +249,6 @@ if (playerAttack(player, enemy)) {
   }
 
   draw();
-
-  if (player.attackTimer > 0) {
-  player.attackTimer--;
-}
-
 }
 
 draw();
