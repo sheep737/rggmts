@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ver:2</title>
+<title>ver:3</title>
 
 <style>
 body {
@@ -65,12 +65,24 @@ let player = {
 let enemy = {
   x: mapW - 3,
   y: mapH - 3,
-  dir: { x: -1, y: 0 }
+  dir: { x: -1, y: 0 },
+  alive: true
 };
 
 /* =====================
    描画
 ===================== */
+
+function playerAttack(player, enemy) {
+  const dx = Math.abs(player.x - enemy.x);
+  const dy = Math.abs(player.y - enemy.y);
+
+  // 上下左右に隣接していたら攻撃成功
+  if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+    return true;
+  }
+  return false;
+}
 
 function chaseEnemy(enemy, player) {
   const dx = player.x - enemy.x;
@@ -101,7 +113,7 @@ function draw() {
     tileSize - 8
   );
 
-  // 敵
+if (enemy.alive) {
   ctx.fillStyle = "#f33";
   ctx.fillRect(
     enemy.x * tileSize + 4,
@@ -109,6 +121,8 @@ function draw() {
     tileSize - 8,
     tileSize - 8
   );
+}
+
 }
 
 /* =====================
@@ -145,15 +159,27 @@ let timer = null;
 function loop() {
   autoMove(player);
 
-  // 敵は追いかけてから動く
-  chaseEnemy(enemy, player);
-  autoMove(enemy);
+  if (enemy.alive) {
+    // 敵は追いかけてから動く
+    chaseEnemy(enemy, player);
+    autoMove(enemy);
 
-  if (player.x === enemy.x && player.y === enemy.y) {
-    draw();
-    clearInterval(timer);
-    alert("ゲームオーバー");
-    return;
+    // プレイヤーの自動攻撃
+    if (playerAttack(player, enemy)) {
+      enemy.alive = false;
+      draw();
+      clearInterval(timer);
+      alert("敵を倒した！");
+      return;
+    }
+
+    // 接触したら負け
+    if (player.x === enemy.x && player.y === enemy.y) {
+      draw();
+      clearInterval(timer);
+      alert("ゲームオーバー");
+      return;
+    }
   }
 
   draw();
