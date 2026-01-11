@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ver:5</title>
+<title>ver:6</title>
 <style>
 body {
   margin: 0;
@@ -42,15 +42,33 @@ for (let y = 0; y < mapH; y++) {
   map.push(row);
 }
 
-let player = {
-  x: 2,
-  y: 2,
-  dir: { x: 1, y: 0 }
-};
-
 let enemies = [
   { x: mapW - 3, y: mapH - 3, dir: { x: -1, y: 0 }, alive: true }
 ];
+
+const start = getRandomEmptyCell();
+
+let player = {
+  x: start.x,
+  y: start.y,
+  dir: { x: 1, y: 0 }
+};
+
+function getRandomEmptyCell() {
+  while (true) {
+    const x = Math.floor(Math.random() * mapW);
+    const y = Math.floor(Math.random() * mapH);
+
+    // 床マスのみ
+    if (map[y][x] !== 0) continue;
+
+    // 敵と被らない
+    const hitEnemy = enemies.some(e => e.x === x && e.y === y);
+    if (hitEnemy) continue;
+
+    return { x, y };
+  }
+}
 
 function playerAttack(player, enemy) {
   const dx = Math.abs(player.x - enemy.x);
