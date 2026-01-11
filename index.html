@@ -2,258 +2,162 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ver:8</title>
+<title>Pinball Complete</title>
 <style>
-body {
-  margin: 0;
-  background: black;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-
-canvas {
-  background: black;
-  image-rendering: pixelated;
-}
+  body {
+    margin: 0;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: #0f0;
+    font-family: monospace;
+  }
+  canvas {
+    background: #000;
+    border: 4px solid #0f0;
+  }
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
+
+<canvas id="game" width="400" height="600"></canvas>
+
 <script>
-const tileSize = 24;
-const mapW = 15;
-const mapH = 10;
 const canvas = document.getElementById("game");
-canvas.width = mapW * tileSize;
-canvas.height = mapH * tileSize;
 const ctx = canvas.getContext("2d");
 
-let map = [];
-for (let y = 0; y < mapH; y++) {
-  let row = [];
-  for (let x = 0; x < mapW; x++) {
-    row.push(
-      x === 0 || y === 0 || x === mapW - 1 || y === mapH - 1 ? 1 : 0
-    );
-  }
-  map.push(row);
-}
+let score = 0;
+let gameOver = false;
 
-let enemies = [
-  { x: mapW - 3, y: mapH - 3, dir: { x: -1, y: 0 }, alive: true }
-];
-
-const start = getRandomEmptyCell();
-
-let player = {
-  x: start.x,
-  y: start.y,
-  dir: { x: 1, y: 0 },
-  cooldown: 0
+// ボール
+const ball = {
+  x: 200,
+  y: 100,
+  r: 8,
+  vx: 2,
+  vy: 0
 };
 
-let bullets = [];
+const gravity = 0.35;
 
-function moveBullets() {
-  bullets.forEach(b => {
-    if (!b.alive) return;
+// フリッパー
+const leftFlipper = { x: 120, y: 520, angle: 0 };
+const rightFlipper = { x: 280, y: 520, angle: 0 };
 
-    b.x += b.dir.x;
-    b.y += b.dir.y;
+// バンパー
+const bumpers = [
+  { x: 200, y: 250, r: 20 },
+  { x: 150, y: 300, r: 15 },
+  { x: 250, y: 300, r: 15 }
+];
 
-if (
-  b.x < 0 || b.x >= mapW ||
-  b.y < 0 || b.y >= mapH ||
-  map[b.y][b.x] === 1
-) {
-  b.alive = false;
+// 入力
+let leftKey = false;
+let rightKey = false;
+
+document.addEventListener("keydown", e => {
+  if (e.key === "a") leftKey = true;
+  if (e.key === "l") rightKey = true;
+  if (e.key === "r") location.reload();
+});
+
+document.addEventListener("keyup", e => {
+  if (e.key === "a") leftKey = false;
+  if (e.key === "l") rightKey = false;
+});
+
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-    enemies.forEach(e => {
-      if (e.alive && e.x === b.x && e.y === b.y) {
-        e.alive = false;
-        b.alive = false;
+// メインループ
+function update() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!gameOver) {
+    // フリッパー角度
+    leftFlipper.angle = leftKey ? -0.6 : 0;
+    rightFlipper.angle = rightKey ? 0.6 : 0;
+
+    // ボール物理
+    ball.vy += gravity;
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // 壁
+    if (ball.x < ball.r || ball.x > canvas.width - ball.r) ball.vx *= -1;
+    if (ball.y < ball.r) ball.vy *= -1;
+
+    // バンパー
+    bumpers.forEach(b => {
+      if (distance(ball, b) < ball.r + b.r) {
+        ball.vy = -6;
+        score += 100;
       }
     });
-  });
 
-  bullets = bullets.filter(b => b.alive);
-}
+    // フリッパー衝突
+    if (ball.y > 500 && ball.y < 540) {
+      if (ball.x < 200 && leftKey) {
+        ball.vy = -8;
+        ball.vx = -3;
+      }
+      if (ball.x > 200 && rightKey) {
+        ball.vy = -8;
+        ball.vx = 3;
+      }
+    }
 
-function getRandomEmptyCell() {
-  while (true) {
-    const x = Math.floor(Math.random() * mapW);
-    const y = Math.floor(Math.random() * mapH);
-
-    // 床マスのみ
-    if (map[y][x] !== 0) continue;
-
-    // 敵と被らない
-    const hitEnemy = enemies.some(e => e.x === x && e.y === y);
-    if (hitEnemy) continue;
-
-    return { x, y };
-  }
-}
-
-function tryShoot(player, enemy) {
-  if (player.cooldown > 0) return;
-
-  const dx = enemy.x - player.x;
-  const dy = enemy.y - player.y;
-
-  // 上下左右にいる時だけ撃つ
-  if (dx === 0 || dy === 0) {
-    player.dir = {
-      x: Math.sign(dx),
-      y: Math.sign(dy)
-    };
-
-    bullets.push({
-      x: player.x + player.dir.x,
-      y: player.y + player.dir.y,
-      dir: { ...player.dir },
-      alive: true
-    });
-
-    player.cooldown = 5; // 発射間隔
-  }
-}
-
-function chaseEnemy(enemy, player) {
-  const dx = player.x - enemy.x;
-  const dy = player.y - enemy.y;
-
-  // 距離が大きい方向を優先
-  if (Math.abs(dx) > Math.abs(dy)) {
-    enemy.dir = { x: Math.sign(dx), y: 0 };
-  } else {
-    enemy.dir = { x: 0, y: Math.sign(dy) };
-  }
-}
-
-function draw() {
-
-  for (let y = 0; y < mapH; y++) {
-    for (let x = 0; x < mapW; x++) {
-      ctx.fillStyle = map[y][x] === 1 ? "#664422" : "#111";
-      ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+    // ゲームオーバー
+    if (ball.y > canvas.height) {
+      gameOver = true;
     }
   }
 
-  ctx.fillStyle = "#3af";
-  ctx.fillRect(
-    player.x * tileSize + 4,
-    player.y * tileSize + 4,
-    tileSize - 8,
-    tileSize - 8
-  );
-
-// 攻撃アニメーション
-if (player.attackTimer > 0) {
+  // 描画：ボール
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
   ctx.fillStyle = "#fff";
+  ctx.fill();
 
-  const ax = player.x + player.dir.x;
-  const ay = player.y + player.dir.y;
+  // 描画：フリッパー
+  drawFlipper(leftFlipper, true);
+  drawFlipper(rightFlipper, false);
 
-  ctx.fillRect(
-    ax * tileSize + 8,
-    ay * tileSize + 8,
-    tileSize - 16,
-    tileSize - 16
-  );
-}
-
-enemies.forEach(enemy => {
-  if (enemy.alive) {
-    ctx.fillStyle = "#f33";
-    ctx.fillRect(
-      enemy.x * tileSize + 4,
-      enemy.y * tileSize + 4,
-      tileSize - 8,
-      tileSize - 8
-    );
-  }
-});
-
-// 弾
-ctx.fillStyle = "#ff0";
-bullets.forEach(b => {
-  ctx.fillRect(
-    b.x * tileSize + 10,
-    b.y * tileSize + 10,
-    tileSize - 20,
-    tileSize - 20
-  );
-});
-
-}
-
-function autoMove(chara) {
-  let nx = chara.x + chara.dir.x;
-  let ny = chara.y + chara.dir.y;
-
-  if (
-    nx < 0 || nx >= mapW ||
-    ny < 0 || ny >= mapH ||
-    map[ny][nx] === 1
-  ) {
-    const dirs = [
-      { x: 1, y: 0 },
-      { x: -1, y: 0 },
-      { x: 0, y: 1 },
-      { x: 0, y: -1 }
-    ];
-    chara.dir = dirs[Math.floor(Math.random() * dirs.length)];
-    return;
-  }
-
-  chara.x = nx;
-  chara.y = ny;
-}
-
-let timer = null;
-
-function loop() {
-
-  autoMove(player);
-
-  if (player.cooldown > 0) player.cooldown--;
-
-  enemies.forEach(enemy => {
-    if (!enemy.alive) return;
-
-    chaseEnemy(enemy, player);
-    autoMove(enemy);
-
-    tryShoot(player, enemy);
-
-    if (player.x === enemy.x && player.y === enemy.y) {
-      draw();
-      clearInterval(timer);
-      alert("ゲームオーバー");
-    }
+  // 描画：バンパー
+  bumpers.forEach(b => {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fillStyle = "#0f0";
+    ctx.fill();
   });
 
-  moveBullets();
+  // スコア
+  ctx.fillStyle = "#0f0";
+  ctx.fillText("SCORE: " + score, 10, 20);
 
-  const allDead = enemies.every(e => !e.alive);
-  if (allDead) {
-    draw();
-    clearInterval(timer);
-    alert("敵を全滅させた！");
-    return;
+  // ゲームオーバー表示
+  if (gameOver) {
+    ctx.fillText("GAME OVER", 150, 300);
+    ctx.fillText("Press R to Restart", 120, 330);
   }
 
-  draw();
+  requestAnimationFrame(update);
 }
 
-draw();
-timer = setInterval(loop, 300);
+function drawFlipper(f, isLeft) {
+  ctx.save();
+  ctx.translate(f.x, f.y);
+  ctx.rotate(f.angle);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(isLeft ? -60 : 0, -5, 60, 10);
+  ctx.restore();
+}
 
+update();
 </script>
+
 </body>
 </html>
