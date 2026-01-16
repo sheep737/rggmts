@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Schedule Board v1.3</title>
+    <title>Schedule Board v1.4</title>
     <style>
         :root {
             --cell-width: 140px;
@@ -17,7 +17,7 @@
         body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; }
         
         .app-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        .version-badge { background: #333; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+        .version-badge { background: #4caf50; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
 
         .outer-wrapper {
             overflow-x: auto;
@@ -50,19 +50,21 @@
             border-radius: 6px;
             font-size: 0.8rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer; /* 編集可能であることを示す */
         }
+        .item:active { opacity: 0.7; }
         .milestone-item { background: #fff9c4; border-left: 4px solid var(--milestone-color); }
         .task-item { background: #e3f2fd; border-left: 4px solid var(--task-color); }
 
-        /* 優先度と時間のバッジ */
         .priority-high { border-left-color: var(--high-priority) !important; background: #ffebee; }
-        .info-row { display: block; font-size: 0.7rem; color: #666; margin-top: 4px; border-top: 1px dotted #ccc; padding-top: 2px; }
+        .info-row { display: block; font-size: 0.7rem; color: #666; margin-top: 4px; border-top: 1px dotted #ccc; padding-top: 2px; pointer-events: none; }
         .high-label { color: var(--high-priority); font-weight: bold; margin-right: 4px; }
 
         .delete-btn {
             position: absolute; right: 4px; top: 8px;
             background: #ff5252; color: white; border: none; border-radius: 4px;
-            width: 22px; height: 22px; cursor: pointer; font-size: 12px;
+            width: 24px; height: 24px; cursor: pointer; font-size: 14px;
+            z-index: 2; /* 編集クリックより優先 */
         }
 
         .add-btn {
@@ -75,8 +77,8 @@
 <body>
 
     <div class="app-header">
-        <h2 style="font-size: 1.2rem; margin:0;">SKED v1.3</h2>
-        <span class="version-badge">所要時間・優先度対応</span>
+        <h2 style="font-size: 1.2rem; margin:0;">SKED v1.4</h2>
+        <span class="version-badge">編集機能対応</span>
     </div>
 
     <div class="outer-wrapper">
@@ -114,37 +116,53 @@
         cell.appendChild(addBtn);
     });
 
-    // iPhoneでの入力を考慮した簡易入力ダイアログ
-    function showInputDialog(cell) {
-        const text = prompt("タスク内容を入力:");
-        if (!text) return;
-        
+    // 入力ダイアログ（新規・編集共用）
+    function showInputDialog(cell, existingData = null) {
+        const defaultText = existingData ? existingData.text : "";
+        const defaultTime = existingData ? existingData.time : "";
+        const defaultPriority = existingData ? (existingData.priority === "高") : false;
+
+        const text = prompt("タスク内容を入力:", defaultText);
+        if (text === null) return; // キャンセル時
+        if (text === "" && !existingData) return;
+
         let time = "";
         let priority = "通常";
 
         if (cell.dataset.type === "task") {
-            time = prompt("想定所要時間は？ (例: 30分, 2h)", "");
-            priority = confirm("優先度は「高」にしますか？") ? "高" : "通常";
+            time = prompt("想定所要時間は？", defaultTime) || "";
+            priority = confirm(`優先度を「高」にしますか？\n(現在は「${defaultPriority ? '高' : '通常'}」です)`) ? "高" : "通常";
         }
 
-        addItem(cell, { text, time, priority });
+        const newData = { text, time, priority };
+
+        if (existingData && existingData.element) {
+            // 既存要素の更新
+            updateItemElement(existingData.element, newData);
+        } else {
+            // 新規作成
+            addItem(cell, newData);
+        }
+        saveData();
     }
 
     function addItem(cell, data) {
-        const type = cell.dataset.type;
         const itemDiv = document.createElement('div');
-        itemDiv.className = `item ${type}-item`;
-        if (data.priority === "高") itemDiv.classList.add('priority-high');
-
-        // 内容の構築
-        let html = `<strong>${data.text}</strong>`;
-        if (data.time || data.priority === "高") {
-            html += `<span class="info-row">`;
-            if (data.priority === "高") html += `<span class="high-label">●高優先</span>`;
-            if (data.time) html += `⏳${data.time}`;
-            html += `</span>`;
-        }
-        itemDiv.innerHTML = html;
+        itemDiv.className = `item ${cell.dataset.type}-item`;
+        
+        // クリックで編集
+        itemDiv.onclick = (e) => {
+            // 削除ボタンクリック時は無視
+            if (e.target.className === 'delete-btn') return;
+            
+            const currentData = {
+                text: itemDiv.querySelector('strong').textContent,
+                time: itemDiv.querySelector('.time-val') ? itemDiv.querySelector('.time-val').textContent : "",
+                priority: itemDiv.classList.contains('priority-high') ? "高" : "通常",
+                element: itemDiv
+            };
+            showInputDialog(cell, currentData);
+        };
 
         const delBtn = document.createElement('button');
         delBtn.innerHTML = '×';
@@ -155,29 +173,45 @@
         };
 
         itemDiv.appendChild(delBtn);
+        updateItemElement(itemDiv, data); // 中身の描画
         cell.insertBefore(itemDiv, cell.lastChild);
-        saveData();
+    }
+
+    // 要素の見た目のみを更新する関数
+    function updateItemElement(element, data) {
+        element.classList.toggle('priority-high', data.priority === "高");
+        
+        let html = `<strong>${data.text}</strong>`;
+        if (data.time || data.priority === "高") {
+            html += `<span class="info-row">`;
+            if (data.priority === "高") html += `<span class="high-label">●高優先</span>`;
+            if (data.time) html += `⏳<span class="time-val">${data.time}</span>`;
+            html += `</span>`;
+        }
+        // 削除ボタンを残すために、最初のテキストノードとinfo-rowのみ書き換え
+        const oldDelBtn = element.querySelector('.delete-btn');
+        element.innerHTML = html;
+        element.appendChild(oldDelBtn);
     }
 
     function saveData() {
         const data = [];
         document.querySelectorAll('.item').forEach(item => {
             const isHigh = item.classList.contains('priority-high');
-            const infoRow = item.querySelector('.info-row');
-            // データの再抽出
+            const timeVal = item.querySelector('.time-val');
             data.push({
                 parentCol: item.parentElement.dataset.col,
                 parentType: item.parentElement.dataset.type,
                 text: item.querySelector('strong').textContent,
-                time: infoRow ? infoRow.textContent.replace('●高優先', '').replace('⏳', '').trim() : "",
+                time: timeVal ? timeVal.textContent : "",
                 priority: isHigh ? "高" : "通常"
             });
         });
-        localStorage.setItem('scheduleData_v1.3', JSON.stringify(data));
+        localStorage.setItem('scheduleData_v1.4', JSON.stringify(data));
     }
 
     function loadData() {
-        const saved = localStorage.getItem('scheduleData_v1.3');
+        const saved = localStorage.getItem('scheduleData_v1.4');
         if (!saved) return;
         JSON.parse(saved).forEach(d => {
             const targetCell = document.querySelector(`[data-type="${d.parentType}"][data-col="${d.parentCol}"]`);
