@@ -3,68 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Schedule Board v1.12</title>
+    <title>Schedule Board v1.13</title>
     <style>
         :root {
-            --cell-width: 140px; --border-color: #ddd;
+            --cell-width: 140px; --label-width: 80px; --backlog-width: 110px;
+            --border-color: #ddd;
             --prio-A: #ff5252; --prio-B: #ff9800; --prio-C: #2196f3; --prio-D: #4caf50; --prio-E: #9e9e9e;
         }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; overflow: auto; }
+        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; }
         .lock-scroll { overflow: hidden !important; }
 
-        .outer-wrapper { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; background: white; position: relative; }
-        /* 列構成: ラベル(80px) + 未定(120px) + 7日間(140px * 7) */
-        .schedule-container { display: grid; grid-template-columns: 80px 120px repeat(7, var(--cell-width)); min-width: min-content; }
-        .cell { border-right: 0.5px solid var(--border-color); border-bottom: 0.5px solid var(--border-color); padding: 8px; min-height: 140px; }
-
-        .label { background: #f8f9fa; font-weight: bold; display: flex; align-items: center; justify-content: center; position: sticky; left: 0; z-index: 25; border-right: 2px solid #ccc; }
+        .outer-wrapper { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; background: white; }
         
-        /* 「未定」列の特別スタイル */
-        .backlog-cell { background: #f0f4f8; border-right: 2px double #ccc; }
-        .header-cell { background: #eee; text-align: center; padding: 5px 2px; position: sticky; top: 0; z-index: 10; font-size: 0.8rem; font-weight: bold; }
-        .backlog-header { background: #cfd8dc; }
+        /* 列構成を固定 */
+        .schedule-container { 
+            display: grid; 
+            grid-template-columns: var(--label-width) var(--backlog-width) repeat(7, var(--cell-width)); 
+            min-width: min-content; 
+        }
+        .cell { border-right: 0.5px solid var(--border-color); border-bottom: 0.5px solid var(--border-color); padding: 8px; min-height: 150px; }
 
-        .limit-info { font-size: 0.65rem; display: block; margin-top: 2px; border-radius: 4px; background: rgba(255,255,255,0.5); }
-        .over-limit { color: #ff5252; font-weight: bold; }
+        /* 左端固定ラベル */
+        .label { 
+            background: #f8f9fa; font-weight: bold; font-size: 0.8rem;
+            display: flex; align-items: center; justify-content: center; 
+            position: sticky; left: 0; z-index: 30; 
+            border-right: 2px solid #ccc; 
+        }
+        
+        /* 未定列も少し固定気味にする（任意） */
+        .backlog-cell { background: #f9f9fb; border-right: 2px solid #ddd; }
+        
+        .header-cell { background: #eee; text-align: center; padding: 8px 2px; position: sticky; top: 0; z-index: 10; font-size: 0.75rem; font-weight: bold; }
+        .backlog-header { background: #cfd8dc; color: #455a64; }
+
+        .limit-info { font-size: 0.6rem; display: block; margin-top: 4px; padding: 2px; border-radius: 4px; background: rgba(255,255,255,0.7); font-weight: normal; }
+        .over-limit { color: #ff5252; font-weight: bold; background: #ffebee; }
 
         .item { 
-            position: relative; padding: 10px; margin-bottom: 8px; border-radius: 8px; font-size: 0.85rem; 
+            position: relative; padding: 10px; margin-bottom: 8px; border-radius: 8px; font-size: 0.8rem; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.1); background: #fff; border-left: 6px solid #ccc;
-            touch-action: none; user-select: none; -webkit-user-select: none;
+            touch-action: none; 
         }
         .item-A { border-left-color: var(--prio-A); } .item-B { border-left-color: var(--prio-B); } .item-C { border-left-color: var(--prio-C); }
         
-        .dragging { position: fixed !important; pointer-events: none; z-index: 9999; width: 110px; transform: scale(1.1); opacity: 0.8; box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
+        .dragging { position: fixed !important; pointer-events: none; z-index: 9999; width: 100px; transform: scale(1.1); opacity: 0.8; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
         .drop-target { background: #e3f2fd !important; }
-        .del-btn { position: absolute; right: 4px; top: 4px; border: none; background: #eee; color: #999; border-radius: 4px; width: 18px; height: 18px; font-size: 10px; }
+        .del-btn { position: absolute; right: 4px; top: 4px; border: none; background: #f5f5f5; color: #bbb; border-radius: 4px; width: 18px; height: 18px; font-size: 10px; }
 
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; }
-        .add-btn { display: block; width: 100%; border: 1px dashed #bbb; background: #fafafa; color: #888; padding: 8px; border-radius: 4px; font-size: 0.7rem; margin-top: 4px; }
+        .add-btn { display: block; width: 100%; border: 1px dashed #bbb; background: #fafafa; color: #aaa; padding: 6px; border-radius: 4px; font-size: 0.7rem; margin-top: 4px; }
     </style>
 </head>
 <body>
 
-    <div style="margin-bottom:10px;">
-        <h2 style="font-size: 1.1rem; margin:0; display:inline;">SKED v1.12</h2>
-        <span style="font-size:0.7rem; color:#666; margin-left:10px;">左端に「未定」を追加</span>
+    <div style="margin-bottom:10px; padding-left: 5px;">
+        <h2 style="font-size: 1.1rem; margin:0;">SKED v1.13</h2>
     </div>
 
     <div class="outer-wrapper">
         <div class="schedule-container" id="board">
             <div class="cell label">日付</div>
-            <div class="cell header-cell backlog-header">未定</div>
-            <div class="cell header-cell" onclick="setDayLimit(1)" id="h-1">1/16<span class="limit-info">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(2)" id="h-2">1/17<span class="limit-info">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(3)" id="h-3">1/18<span class="limit-info">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(4)" id="h-4">1/19<span class="limit-info">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(5)" id="h-5">1/20<span class="limit-info">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(6)" id="h-6">1/21<span class="limit-info">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(7)" id="h-7">1/22<span class="limit-info">未設定</span></div>
+            <div class="cell header-cell backlog-header">未定メモ</div>
+            <div class="cell header-cell" onclick="setDayLimit(1)" id="h-1">1/16<span class="limit-info" id="li-1">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(2)" id="h-2">1/17<span class="limit-info" id="li-2">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(3)" id="h-3">1/18<span class="limit-info" id="li-3">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(4)" id="h-4">1/19<span class="limit-info" id="li-4">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(5)" id="h-5">1/20<span class="limit-info" id="li-5">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(6)" id="h-6">1/21<span class="limit-info" id="li-6">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(7)" id="h-7">1/22<span class="limit-info" id="li-7">未設定</span></div>
 
             <div class="cell label">重要</div>
-            <div id="m-0" class="cell backlog-cell milestone-row" data-type="milestone"></div>
+            <div id="m-backlog" class="cell backlog-cell milestone-row" data-type="milestone"></div>
             <div id="m-1" class="cell milestone-row" data-type="milestone"></div>
             <div id="m-2" class="cell milestone-row" data-type="milestone"></div>
             <div id="m-3" class="cell milestone-row" data-type="milestone"></div>
@@ -72,10 +84,9 @@
             <div id="m-5" class="cell milestone-row" data-type="milestone"></div>
             <div id="m-6" class="cell milestone-row" data-type="milestone"></div>
             <div id="m-7" class="cell milestone-row" data-type="milestone"></div>
-            <div id="m-8" class="cell milestone-row" data-type="milestone"></div>
 
             <div class="cell label">タスク</div>
-            <div id="t-0" class="cell backlog-cell task-row" data-type="task"></div>
+            <div id="t-backlog" class="cell backlog-cell task-row" data-type="task"></div>
             <div id="t-1" class="cell task-row" data-type="task"></div>
             <div id="t-2" class="cell task-row" data-type="task"></div>
             <div id="t-3" class="cell task-row" data-type="task"></div>
@@ -83,11 +94,23 @@
             <div id="t-5" class="cell task-row" data-type="task"></div>
             <div id="t-6" class="cell task-row" data-type="task"></div>
             <div id="t-7" class="cell task-row" data-type="task"></div>
-            <div id="t-8" class="cell task-row" data-type="task"></div>
         </div>
     </div>
 
-    <div id="modal"><div class="modal-content"><h3 id="modalTitle" style="margin:0">編集</h3><input type="text" id="inputTxt" style="width:100%; padding:10px; margin:10px 0;"><input type="number" id="inputTime" inputmode="numeric" placeholder="分" style="width:100%; padding:10px; margin-bottom:10px;"><select id="inputPrio" style="width:100%; padding:10px; margin-bottom:10px;"><option value="A">A</option><option value="B">B</option><option value="C" selected>C</option><option value="D">D</option><option value="E">E</option></select><div style="display:flex; gap:10px;"><button onclick="closeModal()" style="flex:1; padding:12px;">閉じる</button><button onclick="confirmModal()" style="flex:1; padding:12px; background:#2196f3; color:white; border:none; border-radius:8px;">保存</button></div></div></div>
+    <div id="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle" style="margin:0 0 15px 0; font-size:1.1rem;">タスク編集</h3>
+            内容<input type="text" id="inputTxt" style="width:100%; padding:12px; margin:5px 0 15px 0; border:1px solid #ccc; border-radius:8px;">
+            時間(分)<input type="number" id="inputTime" inputmode="numeric" style="width:100%; padding:12px; margin:5px 0 15px 0; border:1px solid #ccc; border-radius:8px;">
+            優先度<select id="inputPrio" style="width:100%; padding:12px; margin:5px 0 20px 0; border:1px solid #ccc; border-radius:8px;">
+                <option value="A">A (最高)</option><option value="B">B</option><option value="C" selected>C</option><option value="D">D</option><option value="E">E</option>
+            </select>
+            <div style="display:flex; gap:10px;">
+                <button onclick="closeModal()" style="flex:1; padding:15px; border-radius:8px; border:1px solid #ccc; background:none;">キャンセル</button>
+                <button onclick="confirmModal()" style="flex:1; padding:15px; border-radius:8px; border:none; background:#2196f3; color:white; font-weight:bold;">保存</button>
+            </div>
+        </div>
+    </div>
 
 <script>
     let activeCell = null, editingElement = null, draggedItem = null, longPressTimer = null, currentDropTarget = null;
@@ -96,7 +119,7 @@
     function init() {
         document.querySelectorAll('.milestone-row, .task-row').forEach(cell => {
             const btn = document.createElement('button');
-            btn.className = 'add-btn'; btn.textContent = '+';
+            btn.className = 'add-btn'; btn.textContent = '+ 追加';
             btn.onclick = (e) => { e.stopPropagation(); openModal(cell); };
             cell.appendChild(btn);
         });
@@ -126,7 +149,7 @@
             if(!item.classList.contains('dragging')) {
                 item.classList.add('dragging'); document.body.classList.add('lock-scroll');
             }
-            draggedItem.style.left = (touch.clientX - 55) + 'px';
+            draggedItem.style.left = (touch.clientX - 50) + 'px';
             draggedItem.style.top = (touch.clientY - 20) + 'px';
 
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -155,7 +178,7 @@
         
         const delBtn = document.createElement('button');
         delBtn.className = 'del-btn'; delBtn.textContent = '×';
-        delBtn.onclick = (e) => { e.stopPropagation(); if(confirm("削除？")){item.remove(); updateAllCalculations(); saveData();} };
+        delBtn.onclick = (e) => { e.stopPropagation(); if(confirm("消去しますか？")){item.remove(); updateAllCalculations(); saveData();} };
         item.appendChild(document.createElement('div'));
         item.appendChild(delBtn);
 
@@ -164,21 +187,28 @@
     }
 
     function setDayLimit(col) {
-        const val = prompt(`${col}日目の時間を分で入力:`, dayLimits[col] || "");
+        const val = prompt(`${col}日目の空き時間を分で入力:`, dayLimits[col] || "");
         if (val !== null) { dayLimits[col] = parseInt(val) || 0; saveData(); updateAllCalculations(); }
     }
+
     function updateAllCalculations() {
         for (let i = 1; i <= 7; i++) {
             const limit = dayLimits[i];
             const tasks = document.querySelectorAll(`#t-${i} .t-val, #m-${i} .t-val`);
             let total = 0; tasks.forEach(t => total += parseInt(t.textContent) || 0);
-            const infoEl = document.querySelector(`#h-${i} .limit-info`);
-            if (limit === 0) { infoEl.textContent = `計 ${total}分`; } 
-            else { const diff = limit - total; infoEl.textContent = diff >= 0 ? `残 ${diff}分` : `不足 ${Math.abs(diff)}分`; infoEl.classList.toggle('over-limit', diff < 0); }
+            const infoEl = document.getElementById(`li-${i}`);
+            if (limit === 0) { infoEl.textContent = `計 ${total}分`; infoEl.classList.remove('over-limit'); } 
+            else { 
+                const diff = limit - total; 
+                infoEl.textContent = diff >= 0 ? `残 ${diff}分` : `不足 ${Math.abs(diff)}分`; 
+                infoEl.classList.toggle('over-limit', diff < 0); 
+            }
         }
     }
+
     function openModal(cell, el = null) {
         activeCell = cell; editingElement = el;
+        document.getElementById('modalTitle').textContent = el ? "タスクを編集" : "新規タスク";
         document.getElementById('inputTxt').value = el ? el.querySelector('strong').textContent : "";
         document.getElementById('inputTime').value = el ? (el.querySelector('.t-val')?.textContent || "") : "";
         document.getElementById('inputPrio').value = el ? el.dataset.prio : "C";
@@ -200,10 +230,10 @@
         document.querySelectorAll('.item').forEach(item => {
             data.items.push({ parentID: item.parentElement.id, text: item.querySelector('strong').textContent, time: item.querySelector('.t-val')?.textContent || "", prio: item.dataset.prio });
         });
-        localStorage.setItem('scheduleData_v1.12', JSON.stringify(data));
+        localStorage.setItem('scheduleData_v1.13', JSON.stringify(data));
     }
     function loadData() {
-        const saved = localStorage.getItem('scheduleData_v1.12');
+        const saved = localStorage.getItem('scheduleData_v1.13');
         if (!saved) return;
         const parsed = JSON.parse(saved);
         if(parsed.limits) dayLimits = parsed.limits;
