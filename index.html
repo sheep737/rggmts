@@ -2,135 +2,130 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Editable Scheduler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Schedule Board v1.2</title>
     <style>
         :root {
-            --cell-width: 160px;
+            --cell-width: 120px; /* iPhone向けに少し幅を調整 */
             --border-color: #ddd;
+            --milestone-color: #fbc02d;
+            --task-color: #2196f3;
         }
 
-        body { font-family: "Helvetica Neue", Arial, sans-serif; margin: 20px; background: #f9f9f9; }
-        h2 { color: #333; }
+        /* 全体設定：iPhoneのタップ時の青い枠を消す */
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 10px; background: #f0f2f5; }
+        
+        .app-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .version-badge { background: #333; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+
+        /* スクロールエリアの親 */
+        .outer-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* iPhoneのスムーズスクロール */
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+        }
 
         .schedule-container {
             display: grid;
-            grid-template-columns: 100px repeat(7, var(--cell-width));
-            background: white;
-            border: 1px solid var(--border-color);
-            overflow-x: auto;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            /* 1列目(ラベル)を80px、それ以外を可変幅に */
+            grid-template-columns: 80px repeat(7, var(--cell-width));
+            min-width: min-content;
         }
 
-        .cell {
-            border: 0.5px solid var(--border-color);
-            padding: 8px;
-            min-height: 100px;
-        }
-
-        .label {
-            background: #eee;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: sticky;
-            left: 0;
+        .cell { border-right: 0.5px solid var(--border-color); border-bottom: 0.5px solid var(--border-color); padding: 8px; min-height: 120px; }
+        
+        /* ラベル列を左側に固定 */
+        .label { 
+            background: #f8f9fa; 
+            font-weight: bold; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: sticky; 
+            left: 0; 
             z-index: 5;
+            border-right: 2px solid #ccc;
         }
 
-        .header-cell {
-            background: #f0f0f0;
-            text-align: center;
-            font-weight: bold;
-            min-height: auto;
-            height: 40px;
-            line-height: 40px;
-        }
+        .header-cell { background: #eee; text-align: center; font-weight: bold; min-height: 45px; height: 45px; line-height: 45px; font-size: 0.9rem; }
 
-        /* アイテムのデザイン */
+        /* アイテムと削除ボタン */
         .item {
             position: relative;
-            padding: 8px;
-            margin-bottom: 6px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            group: hover;
+            padding: 8px 30px 8px 8px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
+        .milestone-item { background: #fff9c4; border-left: 4px solid var(--milestone-color); }
+        .task-item { background: #e3f2fd; border-left: 4px solid var(--task-color); }
 
-        .milestone-item { background: #fff9c4; border-left: 4px solid #fbc02d; }
-        .task-item { background: #e3f2fd; border-left: 4px solid #2196f3; }
-
+        /* 削除ボタン：iPhoneで押しやすいサイズ */
         .delete-btn {
             position: absolute;
             right: 4px;
-            top: 4px;
-            background: rgba(255,0,0,0.6);
+            top: 50%;
+            transform: translateY(-50%);
+            background: #ff5252;
             color: white;
             border: none;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
             cursor: pointer;
-            display: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
         }
-
-        .item:hover .delete-btn { display: block; }
 
         .add-btn {
-            display: block;
-            width: 100%;
-            border: 1px dashed #ccc;
-            background: transparent;
-            color: #999;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            font-size: 0.7rem;
+            display: block; width: 100%; border: 1px dashed #bbb;
+            background: #fafafa; color: #888; cursor: pointer;
+            padding: 8px 4px; border-radius: 4px; font-size: 0.75rem;
+            margin-top: 4px;
         }
-
-        .add-btn:hover { background: #f0f0f0; color: #666; }
     </style>
 </head>
 <body>
 
-    <h2>スケジュール管理ボード</h2>
-    <p><small>※入力した内容は自動的に保存されます。</small></p>
+    <div class="app-header">
+        <h2 style="font-size: 1.2rem; margin:0;">SKED v1.2</h2>
+        <span class="version-badge">iPhone対応版</span>
+    </div>
 
-    <div class="schedule-container" id="board">
-        <div class="cell label">日付</div>
-        <div class="cell header-cell">10/1(月)</div>
-        <div class="cell header-cell">10/2(火)</div>
-        <div class="cell header-cell">10/3(水)</div>
-        <div class="cell header-cell">10/4(木)</div>
-        <div class="cell header-cell">10/5(金)</div>
-        <div class="cell header-cell">10/6(土)</div>
-        <div class="cell header-cell">10/7(日)</div>
+    <div class="outer-wrapper">
+        <div class="schedule-container" id="board">
+            <div class="cell label">日付</div>
+            <div class="cell header-cell">10/1</div><div class="cell header-cell">10/2</div><div class="cell header-cell">10/3</div><div class="cell header-cell">10/4</div><div class="cell header-cell">10/5</div><div class="cell header-cell">10/6</div><div class="cell header-cell">10/7</div>
 
-        <div class="cell label">重要</div>
-        <div class="cell milestone-row" data-type="milestone" data-col="1"></div>
-        <div class="cell milestone-row" data-type="milestone" data-col="2"></div>
-        <div class="cell milestone-row" data-type="milestone" data-col="3"></div>
-        <div class="cell milestone-row" data-type="milestone" data-col="4"></div>
-        <div class="cell milestone-row" data-type="milestone" data-col="5"></div>
-        <div class="cell milestone-row" data-type="milestone" data-col="6"></div>
-        <div class="cell milestone-row" data-type="milestone" data-col="7"></div>
+            <div class="cell label">重要</div>
+            <div class="cell milestone-row" data-type="milestone" data-col="1"></div>
+            <div class="cell milestone-row" data-type="milestone" data-col="2"></div>
+            <div class="cell milestone-row" data-type="milestone" data-col="3"></div>
+            <div class="cell milestone-row" data-type="milestone" data-col="4"></div>
+            <div class="cell milestone-row" data-type="milestone" data-col="5"></div>
+            <div class="cell milestone-row" data-type="milestone" data-col="6"></div>
+            <div class="cell milestone-row" data-type="milestone" data-col="7"></div>
 
-        <div class="cell label">タスク</div>
-        <div class="cell task-row" data-type="task" data-col="1"></div>
-        <div class="cell task-row" data-type="task" data-col="2"></div>
-        <div class="cell task-row" data-type="task" data-col="3"></div>
-        <div class="cell task-row" data-type="task" data-col="4"></div>
-        <div class="cell task-row" data-type="task" data-col="5"></div>
-        <div class="cell task-row" data-type="task" data-col="6"></div>
-        <div class="cell task-row" data-type="task" data-col="7"></div>
+            <div class="cell label">タスク</div>
+            <div class="cell task-row" data-type="task" data-col="1"></div>
+            <div class="cell task-row" data-type="task" data-col="2"></div>
+            <div class="cell task-row" data-type="task" data-col="3"></div>
+            <div class="cell task-row" data-type="task" data-col="4"></div>
+            <div class="cell task-row" data-type="task" data-col="5"></div>
+            <div class="cell task-row" data-type="task" data-col="6"></div>
+            <div class="cell task-row" data-type="task" data-col="7"></div>
+        </div>
     </div>
 
 <script>
-    // 初期化：各セルに追加ボタンを設置
     const cells = document.querySelectorAll('.milestone-row, .task-row');
-    
     cells.forEach(cell => {
         const addBtn = document.createElement('button');
         addBtn.className = 'add-btn';
@@ -139,8 +134,8 @@
         cell.appendChild(addBtn);
     });
 
-    // アイテム追加関数
     function addItem(cell, text = '') {
+        // iPhoneで入力しやすいよう少しディレイを入れる場合もありますが、基本はpromptでOK
         const content = text || prompt("内容を入力してください:");
         if (!content) return;
 
@@ -149,37 +144,36 @@
         itemDiv.className = `item ${type}-item`;
         itemDiv.textContent = content;
 
-        // 削除ボタン
         const delBtn = document.createElement('button');
         delBtn.innerHTML = '×';
         delBtn.className = 'delete-btn';
         delBtn.onclick = (e) => {
             e.stopPropagation();
-            itemDiv.remove();
-            saveData();
+            if(confirm("削除しますか？")) {
+                itemDiv.remove();
+                saveData();
+            }
         };
 
         itemDiv.appendChild(delBtn);
-        cell.insertBefore(itemDiv, cell.lastChild); // ボタンの前に挿入
+        cell.insertBefore(itemDiv, cell.lastChild);
         saveData();
     }
 
-    // データ保存
     function saveData() {
         const data = [];
         document.querySelectorAll('.item').forEach(item => {
             data.push({
                 parentCol: item.parentElement.dataset.col,
                 parentType: item.parentElement.dataset.type,
-                text: item.firstChild.textContent // 削除ボタン以外のテキスト
+                text: item.firstChild.textContent
             });
         });
-        localStorage.setItem('mySchedule', JSON.stringify(data));
+        localStorage.setItem('scheduleData_v1.2', JSON.stringify(data));
     }
 
-    // データ読み込み
     function loadData() {
-        const saved = localStorage.getItem('mySchedule');
+        const saved = localStorage.getItem('scheduleData_v1.2');
         if (!saved) return;
         const data = JSON.parse(saved);
         data.forEach(d => {
@@ -188,9 +182,7 @@
         });
     }
 
-    // 起動時に読み込み
     window.onload = loadData;
 </script>
-
 </body>
 </html>
