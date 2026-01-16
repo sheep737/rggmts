@@ -3,43 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Schedule Board v1.8</title>
+    <title>Schedule Board v1.9</title>
     <style>
         :root {
             --cell-width: 140px; --border-color: #ddd;
             --prio-A: #ff5252; --prio-B: #ff9800; --prio-C: #2196f3; --prio-D: #4caf50; --prio-E: #9e9e9e;
         }
-        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: pan-y; } /* スクロールを邪魔しない */
-        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; overflow-x: hidden; }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: pan-y; }
+        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; }
         
-        .app-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        .version-badge { background: #000; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+        .app-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .version-badge { background: #607d8b; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
 
         .outer-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border-color); border-radius: 8px; background: white; }
         .schedule-container { display: grid; grid-template-columns: 80px repeat(7, var(--cell-width)); min-width: min-content; }
         .cell { border-right: 0.5px solid var(--border-color); border-bottom: 0.5px solid var(--border-color); padding: 8px; min-height: 140px; }
 
         .label { background: #f8f9fa; font-weight: bold; display: flex; align-items: center; justify-content: center; position: sticky; left: 0; z-index: 10; border-right: 2px solid #ccc; }
-        .header-cell { background: #eee; text-align: center; font-weight: bold; height: 45px; line-height: 45px; font-size: 0.8rem; }
+        
+        /* 日付ヘッダーと空き時間表示 */
+        .header-cell { background: #eee; text-align: center; padding: 5px 2px; cursor: pointer; }
+        .date-txt { font-weight: bold; font-size: 0.8rem; display: block; }
+        .limit-info { font-size: 0.65rem; display: block; margin-top: 2px; padding: 2px; border-radius: 4px; background: rgba(255,255,255,0.5); }
+        .over-limit { color: #ff5252; font-weight: bold; background: #ffebee; }
+        .under-limit { color: #1976d2; }
 
         .item { 
             position: relative; padding: 10px; margin-bottom: 8px; border-radius: 8px; font-size: 0.85rem; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.1); background: #fff; border-left: 6px solid #ccc;
-            cursor: grab; user-select: none; -webkit-user-select: none;
         }
         .item-A { border-left-color: var(--prio-A); } .item-B { border-left-color: var(--prio-B); } .item-C { border-left-color: var(--prio-C); }
-        
-        /* ドラッグ中の見た目 */
-        .dragging {
-            position: fixed !important;
-            pointer-events: none;
-            z-index: 9999;
-            width: 130px;
-            transform: scale(1.1);
-            opacity: 0.9;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
-        }
-
+        .dragging { position: fixed !important; pointer-events: none; z-index: 9999; width: 130px; transform: scale(1.1); opacity: 0.9; box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
         .drop-target { background: #e3f2fd !important; }
 
         .del-btn { position: absolute; right: 4px; top: 4px; border: none; background: #eee; color: #999; border-radius: 4px; width: 20px; height: 20px; font-size: 12px; }
@@ -47,22 +41,26 @@
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; }
         .modal-content input, .modal-content select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
-        .modal-btns { display: flex; gap: 10px; margin-top: 10px; }
-        .modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; }
         .add-btn { display: block; width: 100%; border: 1px dashed #bbb; background: #fafafa; color: #888; padding: 8px; border-radius: 4px; font-size: 0.75rem; margin-top: 4px; }
     </style>
 </head>
 <body id="mainBody">
 
     <div class="app-header">
-        <h2 style="font-size: 1.2rem; margin:0;">SKED v1.8</h2>
-        <span class="version-badge">ドラッグ移動版</span>
+        <h2 style="font-size: 1.1rem; margin:0;">SKED v1.9</h2>
+        <span class="version-badge">空き時間管理</span>
     </div>
 
-    <div class="outer-wrapper" id="scrollArea">
+    <div class="outer-wrapper">
         <div class="schedule-container" id="board">
             <div class="cell label">日付</div>
-            <div class="cell header-cell">1/16</div><div class="cell header-cell">1/17</div><div class="cell header-cell">1/18</div><div class="cell header-cell">1/19</div><div class="cell header-cell">1/20</div><div class="cell header-cell">1/21</div><div class="cell header-cell">1/22</div>
+            <div class="cell header-cell" onclick="setDayLimit(1)" id="h-1"><span class="date-txt">1/16</span><span class="limit-info">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(2)" id="h-2"><span class="date-txt">1/17</span><span class="limit-info">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(3)" id="h-3"><span class="date-txt">1/18</span><span class="limit-info">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(4)" id="h-4"><span class="date-txt">1/19</span><span class="limit-info">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(5)" id="h-5"><span class="date-txt">1/20</span><span class="limit-info">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(6)" id="h-6"><span class="date-txt">1/21</span><span class="limit-info">未設定</span></div>
+            <div class="cell header-cell" onclick="setDayLimit(7)" id="h-7"><span class="date-txt">1/22</span><span class="limit-info">未設定</span></div>
 
             <div class="cell label">重要</div>
             <div id="m-1" class="cell milestone-row" data-type="milestone" data-col="1"></div>
@@ -94,19 +92,16 @@
                 <option value="C" selected>優先度 C</option><option value="D">優先度 D</option>
                 <option value="E">優先度 E</option>
             </select>
-            <div class="modal-btns">
-                <button onclick="closeModal()">キャンセル</button>
-                <button onclick="confirmModal()" style="background:#2196f3; color:white;">保存</button>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button onclick="closeModal()" style="flex:1; padding:12px; border-radius:8px; border:none;">キャンセル</button>
+                <button onclick="confirmModal()" style="flex:1; padding:12px; border-radius:8px; border:none; background:#2196f3; color:white;">保存</button>
             </div>
         </div>
     </div>
 
 <script>
-    let activeCell = null;
-    let editingElement = null;
-    let draggedItem = null;
-    let pressTimer = null;
-    let currentDropTarget = null;
+    let activeCell = null, editingElement = null, draggedItem = null, pressTimer = null, currentDropTarget = null;
+    let dayLimits = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 };
 
     function init() {
         document.querySelectorAll('.milestone-row, .task-row').forEach(cell => {
@@ -116,6 +111,37 @@
             cell.appendChild(btn);
         });
         loadData();
+        updateAllCalculations();
+    }
+
+    // 空き時間設定
+    function setDayLimit(col) {
+        const val = prompt(`${col}日目の活動可能時間を分で入力してください:`, dayLimits[col] || "");
+        if (val !== null) {
+            dayLimits[col] = parseInt(val) || 0;
+            saveData();
+            updateAllCalculations();
+        }
+    }
+
+    // 計算の更新
+    function updateAllCalculations() {
+        for (let i = 1; i <= 7; i++) {
+            const limit = dayLimits[i];
+            const tasks = document.querySelectorAll(`#t-${i} .t-val, #m-${i} .t-val`);
+            let total = 0;
+            tasks.forEach(t => total += parseInt(t.textContent) || 0);
+
+            const infoEl = document.querySelector(`#h-${i} .limit-info`);
+            if (limit === 0) {
+                infoEl.textContent = `計 ${total}分`;
+                infoEl.className = "limit-info";
+            } else {
+                const diff = limit - total;
+                infoEl.textContent = diff >= 0 ? `残 ${diff}分 / ${limit}` : `不足 ${Math.abs(diff)}分`;
+                infoEl.className = "limit-info " + (diff >= 0 ? "under-limit" : "over-limit");
+            }
+        }
     }
 
     function addItem(cell, data) {
@@ -125,70 +151,43 @@
 
         const startDrag = (e) => {
             if(e.target.tagName === 'BUTTON') return;
-            const touch = e.touches ? e.touches[0] : e;
             pressTimer = setTimeout(() => {
-                draggedItem = item;
-                item.classList.add('dragging');
+                draggedItem = item; item.classList.add('dragging');
                 if(window.navigator.vibrate) window.navigator.vibrate(40);
             }, 500);
         };
-
         const moveDrag = (e) => {
             if(!draggedItem) return;
-            e.preventDefault();
             const touch = e.touches ? e.touches[0] : e;
-            
-            // 指の下ではなく少し上に表示（見やすくするため）
             draggedItem.style.left = (touch.clientX - 65) + 'px';
             draggedItem.style.top = (touch.clientY - 80) + 'px';
-
-            // 下にある要素（ドロップ先）を探す
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
             const cell = target?.closest('.cell');
-            
             document.querySelectorAll('.cell').forEach(c => c.classList.remove('drop-target'));
             if(cell && !cell.classList.contains('label') && cell.dataset.type === item.parentElement.dataset.type) {
-                cell.classList.add('drop-target');
-                currentDropTarget = cell;
-            } else {
-                currentDropTarget = null;
-            }
+                cell.classList.add('drop-target'); currentDropTarget = cell;
+            } else { currentDropTarget = null; }
         };
-
-        const endDrag = (e) => {
+        const endDrag = () => {
             clearTimeout(pressTimer);
             if(!draggedItem) return;
-            
-            if(currentDropTarget) {
-                currentDropTarget.insertBefore(draggedItem, currentDropTarget.lastChild);
-            }
-            
+            if(currentDropTarget) { currentDropTarget.insertBefore(draggedItem, currentDropTarget.lastChild); }
             draggedItem.classList.remove('dragging');
-            draggedItem.style.position = '';
-            draggedItem.style.left = '';
-            draggedItem.style.top = '';
+            draggedItem.style.position = draggedItem.style.left = draggedItem.style.top = '';
             draggedItem = null;
             document.querySelectorAll('.cell').forEach(c => c.classList.remove('drop-target'));
-            saveData();
+            updateAllCalculations(); saveData();
         };
 
         item.addEventListener('touchstart', startDrag, {passive: true});
         item.addEventListener('touchmove', moveDrag, {passive: false});
         item.addEventListener('touchend', endDrag);
-        item.addEventListener('mousedown', startDrag);
-        window.addEventListener('mousemove', moveDrag);
-        window.addEventListener('mouseup', endDrag);
-
-        item.onclick = (e) => {
-            if(e.target.tagName !== 'BUTTON') openModal(item.parentElement, item);
-        };
-
-        const content = document.createElement('div');
-        item.appendChild(content);
+        item.onclick = (e) => { if(e.target.tagName !== 'BUTTON') openModal(item.parentElement, item); };
 
         const delBtn = document.createElement('button');
         delBtn.className = 'del-btn'; delBtn.textContent = '×';
-        delBtn.onclick = (e) => { e.stopPropagation(); if(confirm("削除？")){item.remove(); saveData();} };
+        delBtn.onclick = (e) => { e.stopPropagation(); if(confirm("削除？")){item.remove(); updateAllCalculations(); saveData();} };
+        item.appendChild(document.createElement('div'));
         item.appendChild(delBtn);
 
         updateItemElement(item, data);
@@ -202,44 +201,32 @@
         document.getElementById('inputPrio').value = el ? el.dataset.prio : "C";
         document.getElementById('modal').style.display = 'flex';
     }
-
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
     function confirmModal() {
-        const data = {
-            text: document.getElementById('inputTxt').value,
-            time: document.getElementById('inputTime').value,
-            prio: document.getElementById('inputPrio').value
-        };
+        const data = { text: document.getElementById('inputTxt').value, time: document.getElementById('inputTime').value, prio: document.getElementById('inputPrio').value };
         if(!data.text) return;
         if(editingElement) updateItemElement(editingElement, data);
         else addItem(activeCell, data);
-        closeModal();
-        saveData();
+        closeModal(); updateAllCalculations(); saveData();
     }
-
     function updateItemElement(el, data) {
-        el.className = `item item-${data.prio}`;
-        el.dataset.prio = data.prio;
+        el.className = `item item-${data.prio}`; el.dataset.prio = data.prio;
         el.firstChild.innerHTML = `<strong>${data.text}</strong>${data.time ? `<div style="font-size:0.7rem; color:#666; margin-top:2px;">⏳<span class="t-val">${data.time}</span>分</div>` : ''}`;
     }
 
     function saveData() {
-        const data = [];
+        const data = { items: [], limits: dayLimits };
         document.querySelectorAll('.item').forEach(item => {
-            data.push({
-                parentID: item.parentElement.id,
-                text: item.querySelector('strong').textContent,
-                time: item.querySelector('.t-val')?.textContent || "",
-                prio: item.dataset.prio
-            });
+            data.items.push({ parentID: item.parentElement.id, text: item.querySelector('strong').textContent, time: item.querySelector('.t-val')?.textContent || "", prio: item.dataset.prio });
         });
-        localStorage.setItem('scheduleData_v1.8', JSON.stringify(data));
+        localStorage.setItem('scheduleData_v1.9', JSON.stringify(data));
     }
-
     function loadData() {
-        const saved = localStorage.getItem('scheduleData_v1.8');
+        const saved = localStorage.getItem('scheduleData_v1.9');
         if (!saved) return;
-        JSON.parse(saved).forEach(d => {
+        const parsed = JSON.parse(saved);
+        if(parsed.limits) dayLimits = parsed.limits;
+        parsed.items.forEach(d => {
             const cell = document.getElementById(d.parentID);
             if (cell) addItem(cell, d);
         });
