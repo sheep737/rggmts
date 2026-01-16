@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Schedule Board v1.4</title>
+    <title>Schedule Board v1.5</title>
     <style>
         :root {
             --cell-width: 140px;
@@ -17,7 +17,7 @@
         body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; }
         
         .app-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        .version-badge { background: #4caf50; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+        .version-badge { background: #673ab7; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
 
         .outer-wrapper {
             overflow-x: auto;
@@ -42,7 +42,6 @@
 
         .header-cell { background: #eee; text-align: center; font-weight: bold; min-height: 45px; height: 45px; line-height: 45px; font-size: 0.8rem; }
 
-        /* アイテムデザイン */
         .item {
             position: relative;
             padding: 8px 30px 8px 8px;
@@ -50,9 +49,8 @@
             border-radius: 6px;
             font-size: 0.8rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            cursor: pointer; /* 編集可能であることを示す */
+            cursor: pointer;
         }
-        .item:active { opacity: 0.7; }
         .milestone-item { background: #fff9c4; border-left: 4px solid var(--milestone-color); }
         .task-item { background: #e3f2fd; border-left: 4px solid var(--task-color); }
 
@@ -64,7 +62,7 @@
             position: absolute; right: 4px; top: 8px;
             background: #ff5252; color: white; border: none; border-radius: 4px;
             width: 24px; height: 24px; cursor: pointer; font-size: 14px;
-            z-index: 2; /* 編集クリックより優先 */
+            z-index: 2;
         }
 
         .add-btn {
@@ -77,14 +75,14 @@
 <body>
 
     <div class="app-header">
-        <h2 style="font-size: 1.2rem; margin:0;">SKED v1.4</h2>
-        <span class="version-badge">編集機能対応</span>
+        <h2 style="font-size: 1.2rem; margin:0;">SKED v1.5</h2>
+        <span class="version-badge">日付移動対応</span>
     </div>
 
     <div class="outer-wrapper">
         <div class="schedule-container" id="board">
             <div class="cell label">日付</div>
-            <div class="cell header-cell">10/1</div><div class="cell header-cell">10/2</div><div class="cell header-cell">10/3</div><div class="cell header-cell">10/4</div><div class="cell header-cell">10/5</div><div class="cell header-cell">10/6</div><div class="cell header-cell">10/7</div>
+            <div class="cell header-cell" data-day="1">10/1</div><div class="cell header-cell" data-day="2">10/2</div><div class="cell header-cell" data-day="3">10/3</div><div class="cell header-cell" data-day="4">10/4</div><div class="cell header-cell" data-day="5">10/5</div><div class="cell header-cell" data-day="6">10/6</div><div class="cell header-cell" data-day="7">10/7</div>
 
             <div class="cell label">重要</div>
             <div class="cell milestone-row" data-type="milestone" data-col="1"></div>
@@ -116,45 +114,57 @@
         cell.appendChild(addBtn);
     });
 
-    // 入力ダイアログ（新規・編集共用）
     function showInputDialog(cell, existingData = null) {
+        // 既存データがある場合はメニューを表示
+        if (existingData) {
+            const mode = prompt("操作を選択してください:\n1: 編集する\n2: 別の日に移動する", "1");
+            if (mode === "2") {
+                moveItem(existingData);
+                return;
+            } else if (mode !== "1") {
+                return;
+            }
+        }
+
         const defaultText = existingData ? existingData.text : "";
         const defaultTime = existingData ? existingData.time : "";
-        const defaultPriority = existingData ? (existingData.priority === "高") : false;
-
-        const text = prompt("タスク内容を入力:", defaultText);
-        if (text === null) return; // キャンセル時
-        if (text === "" && !existingData) return;
+        const text = prompt("内容を入力:", defaultText);
+        if (text === null) return;
 
         let time = "";
         let priority = "通常";
-
         if (cell.dataset.type === "task") {
             time = prompt("想定所要時間は？", defaultTime) || "";
-            priority = confirm(`優先度を「高」にしますか？\n(現在は「${defaultPriority ? '高' : '通常'}」です)`) ? "高" : "通常";
+            priority = confirm("優先度を「高」にしますか？") ? "高" : "通常";
         }
 
         const newData = { text, time, priority };
-
-        if (existingData && existingData.element) {
-            // 既存要素の更新
+        if (existingData) {
             updateItemElement(existingData.element, newData);
         } else {
-            // 新規作成
             addItem(cell, newData);
         }
         saveData();
+    }
+
+    // 移動処理
+    function moveItem(data) {
+        const newCol = prompt("移動先の日付を選択してください (1〜7):", data.element.parentElement.dataset.col);
+        if (!newCol || newCol < 1 || newCol > 7) return;
+
+        const targetCell = document.querySelector(`[data-type="${data.element.parentElement.dataset.type}"][data-col="${newCol}"]`);
+        if (targetCell) {
+            targetCell.insertBefore(data.element, targetCell.lastChild);
+            saveData();
+        }
     }
 
     function addItem(cell, data) {
         const itemDiv = document.createElement('div');
         itemDiv.className = `item ${cell.dataset.type}-item`;
         
-        // クリックで編集
         itemDiv.onclick = (e) => {
-            // 削除ボタンクリック時は無視
             if (e.target.className === 'delete-btn') return;
-            
             const currentData = {
                 text: itemDiv.querySelector('strong').textContent,
                 time: itemDiv.querySelector('.time-val') ? itemDiv.querySelector('.time-val').textContent : "",
@@ -173,14 +183,12 @@
         };
 
         itemDiv.appendChild(delBtn);
-        updateItemElement(itemDiv, data); // 中身の描画
+        updateItemElement(itemDiv, data);
         cell.insertBefore(itemDiv, cell.lastChild);
     }
 
-    // 要素の見た目のみを更新する関数
     function updateItemElement(element, data) {
         element.classList.toggle('priority-high', data.priority === "高");
-        
         let html = `<strong>${data.text}</strong>`;
         if (data.time || data.priority === "高") {
             html += `<span class="info-row">`;
@@ -188,7 +196,6 @@
             if (data.time) html += `⏳<span class="time-val">${data.time}</span>`;
             html += `</span>`;
         }
-        // 削除ボタンを残すために、最初のテキストノードとinfo-rowのみ書き換え
         const oldDelBtn = element.querySelector('.delete-btn');
         element.innerHTML = html;
         element.appendChild(oldDelBtn);
@@ -197,21 +204,19 @@
     function saveData() {
         const data = [];
         document.querySelectorAll('.item').forEach(item => {
-            const isHigh = item.classList.contains('priority-high');
-            const timeVal = item.querySelector('.time-val');
             data.push({
                 parentCol: item.parentElement.dataset.col,
                 parentType: item.parentElement.dataset.type,
                 text: item.querySelector('strong').textContent,
-                time: timeVal ? timeVal.textContent : "",
-                priority: isHigh ? "高" : "通常"
+                time: item.querySelector('.time-val') ? item.querySelector('.time-val').textContent : "",
+                priority: item.classList.contains('priority-high') ? "高" : "通常"
             });
         });
-        localStorage.setItem('scheduleData_v1.4', JSON.stringify(data));
+        localStorage.setItem('scheduleData_v1.5', JSON.stringify(data));
     }
 
     function loadData() {
-        const saved = localStorage.getItem('scheduleData_v1.4');
+        const saved = localStorage.getItem('scheduleData_v1.5');
         if (!saved) return;
         JSON.parse(saved).forEach(d => {
             const targetCell = document.querySelector(`[data-type="${d.parentType}"][data-col="${d.parentCol}"]`);
