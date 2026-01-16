@@ -1,248 +1,116 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>TD ver:4</title>
-<style>
-  body {
-    text-align: center;
-    background: #f0f0f0;
-  }
-  canvas {
-    background: #fff;
-    border: 2px solid #333;
-  }
-</style>
+    <meta charset="UTF-8">
+    <title>Simple Schedule Planner</title>
+    <style>
+        :root {
+            --cell-width: 150px;
+            --border-color: #ddd;
+            --milestone-bg: #fff9c4;
+            --task-bg: #e3f2fd;
+        }
+
+        body { font-family: sans-serif; margin: 20px; color: #333; }
+        
+        /* スクロール可能なコンテナ */
+        .schedule-container {
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: 100px repeat(7, var(--cell-width)); /* 1列目はラベル */
+        }
+
+        /* 共通セルスタイル */
+        .cell {
+            border: 0.5px solid var(--border-color);
+            padding: 10px;
+            min-height: 80px;
+        }
+
+        /* ヘッダー（日付） */
+        .header-cell {
+            background: #f5f5f5;
+            text-align: center;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* マイルストーンエリア */
+        .milestone-row { background: var(--milestone-bg); }
+        .milestone-item {
+            background: #fbc02d;
+            font-size: 0.8rem;
+            padding: 4px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+
+        /* タスクエリア */
+        .task-row { background: #fff; }
+        .task-item {
+            background: var(--task-bg);
+            border-left: 4px solid #2196f3;
+            font-size: 0.85rem;
+            padding: 6px;
+            margin-bottom: 5px;
+            border-radius: 2px;
+        }
+
+        .label {
+            background: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-<h2>シンプル タワーディフェンス</h2>
-<p>クリックでタワーを設置</p>
-<button id="startBtn">スタート</button>
-<canvas id="game" width="800" height="400"></canvas>
-<script>
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+    <h2>プロジェクトスケジュール</h2>
 
-const enemies = [];
-const towers = [];
-const bullets = [];
+    <div class="schedule-container">
+        <div class="cell label">日付</div>
+        <div class="cell header-cell">10/1 (月)</div>
+        <div class="cell header-cell">10/2 (火)</div>
+        <div class="cell header-cell">10/3 (水)</div>
+        <div class="cell header-cell">10/4 (木)</div>
+        <div class="cell header-cell">10/5 (金)</div>
+        <div class="cell header-cell">10/6 (土)</div>
+        <div class="cell header-cell">10/7 (日)</div>
 
-const towerSpots = [
-  { x: 150, y: 100, used: false },
-  { x: 150, y: 300, used: false },
-  { x: 300, y: 100, used: false },
-  { x: 300, y: 300, used: false },
-  { x: 450, y: 100, used: false },
-  { x: 450, y: 300, used: false },
-  { x: 600, y: 150, used: false },
-  { x: 600, y: 250, used: false }
-];
+        <div class="cell label">重要</div>
+        <div class="cell milestone-row">
+            <div class="milestone-item">プロジェクト開始</div>
+        </div>
+        <div class="cell milestone-row"></div>
+        <div class="cell milestone-row">
+            <div class="milestone-item">要件定義〆</div>
+        </div>
+        <div class="cell milestone-row"></div>
+        <div class="cell milestone-row"></div>
+        <div class="cell milestone-row"></div>
+        <div class="cell milestone-row"></div>
 
-let frame = 0;
-let gameStarted = false;
-let wave = 1;
-let enemiesToSpawn = 0;
-let spawnCooldown = 0;
-let waveActive = false;
+        <div class="cell label">タスク</div>
+        <div class="cell task-row">
+            <div class="task-item">キックオフ資料作成</div>
+        </div>
+        <div class="cell task-row">
+            <div class="task-item">ヒアリング</div>
+            <div class="task-item">サイトマップ案</div>
+        </div>
+        <div class="cell task-row">
+            <div class="task-item">構成図作成</div>
+        </div>
+        <div class="cell task-row"></div>
+        <div class="cell task-row"></div>
+        <div class="cell task-row"></div>
+        <div class="cell task-row"></div>
+    </div>
 
-// タワー設置
-canvas.addEventListener("click", e => {
-  const rect = canvas.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const clickY = e.clientY - rect.top;
-
-  towerSpots.forEach(spot => {
-    const dist = Math.hypot(spot.x - clickX, spot.y - clickY);
-
-    // 半径20px以内 & 未使用なら設置
-    if (dist < 20 && !spot.used) {
-      towers.push({
-        x: spot.x,
-        y: spot.y,
-        range: 120,
-        cooldown: 0
-      });
-      spot.used = true;
-    }
-  });
-});
-
-const startBtn = document.getElementById("startBtn");
-
-startBtn.addEventListener("click", () => {
-  gameStarted = true;
-  waveActive = true;
-  enemiesToSpawn = wave * 5; // Waveごとに敵数増加
-  startBtn.disabled = true;
-});
-
-// 敵生成
-function spawnEnemy() {
-  enemies.push({
-    x: 0,
-    y: 200,
-    hp: 3,
-    speed: 1
-  });
-}
-
-// 更新処理
-function update() {
-  if (!gameStarted) return;
-
-  // Wave中のみ敵生成
-if (waveActive && enemiesToSpawn > 0) {
-  if (spawnCooldown <= 0) {
-    spawnEnemy();
-    enemiesToSpawn--;
-    spawnCooldown = 60;
-  } else {
-    spawnCooldown--;
-  }
-}
-
-if (waveActive) {
-  // 敵移動
-  enemies.forEach(e => e.x += e.speed);
-
-  // タワー攻撃
-  towers.forEach(t => {
-    if (t.cooldown > 0) {
-      t.cooldown--;
-      return;
-    }
-    const target = enemies.find(e =>
-      Math.hypot(e.x - t.x, e.y - t.y) < t.range
-    );
-    if (target) {
-      bullets.push({
-        x: t.x,
-        y: t.y,
-        target
-      });
-      t.cooldown = 60;
-    }
-  });
-}
-
-  // 弾移動（安全版）
-  bullets.forEach(b => {
-    if (!enemies.includes(b.target)) {
-      bullets.splice(bullets.indexOf(b), 1);
-      return;
-    }
-
-    const dx = b.target.x - b.x;
-    const dy = b.target.y - b.y;
-    const dist = Math.hypot(dx, dy);
-
-    if (dist < 5) {
-      b.target.hp--;
-      bullets.splice(bullets.indexOf(b), 1);
-      return;
-    }
-
-    b.x += dx / dist * 4;
-    b.y += dy / dist * 4;
-  });
-
-  // 敵削除
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    if (enemies[i].hp <= 0 || enemies[i].x > 800) {
-      enemies.splice(i, 1);
-    }
-  }
-
-  // ★ Waveクリア判定
-  if (waveActive && enemies.length === 0 && enemiesToSpawn === 0) {
-    waveActive = false;
-    wave++;
-    startBtn.disabled = false;
-    startBtn.textContent = `Wave ${wave} 開始`;
-  }
-}
-
-// 描画処理
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // 敵
-  enemies.forEach(e => {
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, 10, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // タワー
-  towers.forEach(t => {
-    ctx.fillStyle = "blue";
-    ctx.fillRect(t.x - 10, t.y - 10, 20, 20);
-  });
-
-  // 弾
-  bullets.forEach(b => {
-    ctx.fillStyle = "black";
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-// 描画処理の中（draw関数）
-towerSpots.forEach(s => {
-  ctx.strokeStyle = s.used ? "#aaa" : "#00aa00";
-  ctx.beginPath();
-  ctx.arc(s.x, s.y, 15, 0, Math.PI * 2);
-  ctx.stroke();
-});
-
-if (!gameStarted) {
-  ctx.fillStyle = "rgba(0,0,0,0.5)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = "white";
-  ctx.font = "28px sans-serif";
-  ctx.fillText("準備フェーズ", 320, 170);
-  ctx.font = "20px sans-serif";
-  ctx.fillText("タワーを配置してスタートを押してください", 180, 210);
-}
-
-ctx.fillStyle = "black";
-ctx.font = "16px sans-serif";
-ctx.fillText(`Wave: ${wave}`, 10, 20);
-
-if (waveActive && enemies.length === 0 && enemiesToSpawn > 0) {
-  ctx.fillStyle = "rgba(0,0,0,0.3)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = "white";
-  ctx.font = "28px sans-serif";
-  ctx.fillText(`Wave ${wave} 開始`, 320, 200);
-}
-
-if (!waveActive && gameStarted) {
-  ctx.fillStyle = "rgba(0,0,0,0.4)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = "white";
-  ctx.font = "28px sans-serif";
-  ctx.fillText(`Wave ${wave - 1} クリア！`, 300, 180);
-  ctx.font = "20px sans-serif";
-  ctx.fillText("次のWaveを開始してください", 260, 220);
-}
-
-}
-
-// ゲームループ
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-
-loop();
-
-</script>
 </body>
 </html>
