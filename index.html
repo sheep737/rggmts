@@ -3,228 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Schedule Board v1.5</title>
+    <title>Schedule Board v1.6</title>
     <style>
         :root {
-            --cell-width: 140px;
-            --border-color: #ddd;
-            --milestone-color: #fbc02d;
-            --task-color: #2196f3;
-            --high-priority: #ff5252;
+            --cell-width: 140px; --border-color: #ddd;
+            --prio-A: #ff5252; --prio-B: #ff9800; --prio-C: #2196f3; --prio-D: #4caf50; --prio-E: #9e9e9e;
         }
-
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; }
+        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; padding-bottom: 100px; }
         
         .app-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        .version-badge { background: #673ab7; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+        .version-badge { background: #009688; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
 
-        .outer-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            background: white;
-        }
-
-        .schedule-container {
-            display: grid;
-            grid-template-columns: 80px repeat(7, var(--cell-width));
-            min-width: min-content;
-        }
-
-        .cell { border-right: 0.5px solid var(--border-color); border-bottom: 0.5px solid var(--border-color); padding: 8px; min-height: 130px; }
+        .outer-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border-color); border-radius: 8px; background: white; }
+        .schedule-container { display: grid; grid-template-columns: 80px repeat(7, var(--cell-width)); min-width: min-content; }
+        .cell { border-right: 0.5px solid var(--border-color); border-bottom: 0.5px solid var(--border-color); padding: 8px; min-height: 140px; }
         
-        .label { 
-            background: #f8f9fa; font-weight: bold; display: flex; align-items: center; justify-content: center; 
-            position: sticky; left: 0; z-index: 5; border-right: 2px solid #ccc;
-        }
+        /* 日付選択モードの強調 */
+        .moving-mode .cell:not(.label):not(.header-cell) { background: #fffde7; border: 2px dashed #fbc02d; cursor: cell; }
 
-        .header-cell { background: #eee; text-align: center; font-weight: bold; min-height: 45px; height: 45px; line-height: 45px; font-size: 0.8rem; }
+        .label { background: #f8f9fa; font-weight: bold; display: flex; align-items: center; justify-content: center; position: sticky; left: 0; z-index: 5; border-right: 2px solid #ccc; }
+        .header-cell { background: #eee; text-align: center; font-weight: bold; height: 45px; line-height: 45px; font-size: 0.8rem; }
 
-        .item {
-            position: relative;
-            padding: 8px 30px 8px 8px;
-            margin-bottom: 8px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            cursor: pointer;
-        }
-        .milestone-item { background: #fff9c4; border-left: 4px solid var(--milestone-color); }
-        .task-item { background: #e3f2fd; border-left: 4px solid var(--task-color); }
+        .item { position: relative; padding: 8px; margin-bottom: 8px; border-radius: 6px; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); background: #fff; border-left: 5px solid #ccc; }
+        .item-A { border-left-color: var(--prio-A); } .item-B { border-left-color: var(--prio-B); } .item-C { border-left-color: var(--prio-C); }
 
-        .priority-high { border-left-color: var(--high-priority) !important; background: #ffebee; }
-        .info-row { display: block; font-size: 0.7rem; color: #666; margin-top: 4px; border-top: 1px dotted #ccc; padding-top: 2px; pointer-events: none; }
-        .high-label { color: var(--high-priority); font-weight: bold; margin-right: 4px; }
+        .item-tools { display: flex; gap: 5px; margin-top: 8px; border-top: 1px solid #eee; padding-top: 5px; }
+        .tool-btn { border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; color: white; }
+        .move-btn { background: #673ab7; } .del-btn { background: #ff5252; }
 
-        .delete-btn {
-            position: absolute; right: 4px; top: 8px;
-            background: #ff5252; color: white; border: none; border-radius: 4px;
-            width: 24px; height: 24px; cursor: pointer; font-size: 14px;
-            z-index: 2;
-        }
+        /* 入力モーダル */
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; }
+        .modal-content input, .modal-content select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+        .modal-btns { display: flex; gap: 10px; }
+        .modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; }
 
-        .add-btn {
-            display: block; width: 100%; border: 1px dashed #bbb;
-            background: #fafafa; color: #888; cursor: pointer;
-            padding: 8px 4px; border-radius: 4px; font-size: 0.75rem; margin-top: 4px;
-        }
+        .add-btn { display: block; width: 100%; border: 1px dashed #bbb; background: #fafafa; color: #888; padding: 8px; border-radius: 4px; font-size: 0.75rem; margin-top: 4px; }
     </style>
 </head>
-<body>
+<body id="mainBody">
 
     <div class="app-header">
-        <h2 style="font-size: 1.2rem; margin:0;">SKED v1.5</h2>
-        <span class="version-badge">日付移動対応</span>
+        <h2 style="font-size: 1.2rem; margin:0;">SKED v1.6</h2>
+        <span class="version-badge">移動ラクラク版</span>
     </div>
 
     <div class="outer-wrapper">
         <div class="schedule-container" id="board">
             <div class="cell label">日付</div>
-            <div class="cell header-cell" data-day="1">10/1</div><div class="cell header-cell" data-day="2">10/2</div><div class="cell header-cell" data-day="3">10/3</div><div class="cell header-cell" data-day="4">10/4</div><div class="cell header-cell" data-day="5">10/5</div><div class="cell header-cell" data-day="6">10/6</div><div class="cell header-cell" data-day="7">10/7</div>
+            <div class="cell header-cell">1/16</div><div class="cell header-cell">1/17</div><div class="cell header-cell">1/18</div><div class="cell header-cell">1/19</div><div class="cell header-cell">1/20</div><div class="cell header-cell">1/21</div><div class="cell header-cell">1/22</div>
 
             <div class="cell label">重要</div>
-            <div class="cell milestone-row" data-type="milestone" data-col="1"></div>
-            <div class="cell milestone-row" data-type="milestone" data-col="2"></div>
-            <div class="cell milestone-row" data-type="milestone" data-col="3"></div>
-            <div class="cell milestone-row" data-type="milestone" data-col="4"></div>
-            <div class="cell milestone-row" data-type="milestone" data-col="5"></div>
-            <div class="cell milestone-row" data-type="milestone" data-col="6"></div>
-            <div class="cell milestone-row" data-type="milestone" data-col="7"></div>
+            <div id="m-1" class="cell milestone-row" data-type="milestone" data-col="1"></div>
+            <div id="m-2" class="cell milestone-row" data-type="milestone" data-col="2"></div>
+            <div id="m-3" class="cell milestone-row" data-type="milestone" data-col="3"></div>
+            <div id="m-4" class="cell milestone-row" data-type="milestone" data-col="4"></div>
+            <div id="m-5" class="cell milestone-row" data-type="milestone" data-col="5"></div>
+            <div id="m-6" class="cell milestone-row" data-type="milestone" data-col="6"></div>
+            <div id="m-7" class="cell milestone-row" data-type="milestone" data-col="7"></div>
 
             <div class="cell label">タスク</div>
-            <div class="cell task-row" data-type="task" data-col="1"></div>
-            <div class="cell task-row" data-type="task" data-col="2"></div>
-            <div class="cell task-row" data-type="task" data-col="3"></div>
-            <div class="cell task-row" data-type="task" data-col="4"></div>
-            <div class="cell task-row" data-type="task" data-col="5"></div>
-            <div class="cell task-row" data-type="task" data-col="6"></div>
-            <div class="cell task-row" data-type="task" data-col="7"></div>
+            <div id="t-1" class="cell task-row" data-type="task" data-col="1"></div>
+            <div id="t-2" class="cell task-row" data-type="task" data-col="2"></div>
+            <div id="t-3" class="cell task-row" data-type="task" data-col="3"></div>
+            <div id="t-4" class="cell task-row" data-type="task" data-col="4"></div>
+            <div id="t-5" class="cell task-row" data-type="task" data-col="5"></div>
+            <div id="t-6" class="cell task-row" data-type="task" data-col="6"></div>
+            <div id="t-7" class="cell task-row" data-type="task" data-col="7"></div>
+        </div>
+    </div>
+
+    <div id="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle" style="margin-top:0">タスク入力</h3>
+            <input type="text" id="inputTxt" placeholder="内容（例：会議）">
+            <input type="number" id="inputTime" placeholder="所要時間（分）" inputmode="numeric">
+            <select id="inputPrio">
+                <option value="A">優先度 A (最高)</option><option value="B">優先度 B</option>
+                <option value="C" selected>優先度 C</option><option value="D">優先度 D</option>
+                <option value="E">優先度 E</option>
+            </select>
+            <div class="modal-btns">
+                <button onclick="closeModal()">キャンセル</button>
+                <button onclick="confirmModal()" style="background:#2196f3; color:white;">保存</button>
+            </div>
         </div>
     </div>
 
 <script>
-    const cells = document.querySelectorAll('.milestone-row, .task-row');
-    cells.forEach(cell => {
-        const addBtn = document.createElement('button');
-        addBtn.className = 'add-btn';
-        addBtn.textContent = '+ 追加';
-        addBtn.onclick = () => showInputDialog(cell);
-        cell.appendChild(addBtn);
-    });
+    let activeCell = null;
+    let editingElement = null;
+    let movingElement = null;
 
-    function showInputDialog(cell, existingData = null) {
-        // 既存データがある場合はメニューを表示
-        if (existingData) {
-            const mode = prompt("操作を選択してください:\n1: 編集する\n2: 別の日に移動する", "1");
-            if (mode === "2") {
-                moveItem(existingData);
-                return;
-            } else if (mode !== "1") {
-                return;
-            }
-        }
+    function init() {
+        document.querySelectorAll('.milestone-row, .task-row').forEach(cell => {
+            const btn = document.createElement('button');
+            btn.className = 'add-btn'; btn.textContent = '+ 追加';
+            btn.onclick = (e) => { e.stopPropagation(); openModal(cell); };
+            cell.appendChild(btn);
+            cell.onclick = () => { if(movingElement) finalizeMove(cell); };
+        });
+        loadData();
+    }
 
-        const defaultText = existingData ? existingData.text : "";
-        const defaultTime = existingData ? existingData.time : "";
-        const text = prompt("内容を入力:", defaultText);
-        if (text === null) return;
+    function openModal(cell, el = null) {
+        activeCell = cell; editingElement = el;
+        document.getElementById('modalTitle').textContent = el ? "編集" : "新規追加";
+        document.getElementById('inputTxt').value = el ? el.querySelector('strong').textContent : "";
+        document.getElementById('inputTime').value = el ? (el.querySelector('.t-val')?.textContent || "") : "";
+        document.getElementById('inputPrio').value = el ? el.dataset.prio : "C";
+        document.getElementById('modal').style.display = 'flex';
+    }
 
-        let time = "";
-        let priority = "通常";
-        if (cell.dataset.type === "task") {
-            time = prompt("想定所要時間は？", defaultTime) || "";
-            priority = confirm("優先度を「高」にしますか？") ? "高" : "通常";
-        }
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
 
-        const newData = { text, time, priority };
-        if (existingData) {
-            updateItemElement(existingData.element, newData);
-        } else {
-            addItem(cell, newData);
-        }
+    function confirmModal() {
+        const data = {
+            text: document.getElementById('inputTxt').value,
+            time: document.getElementById('inputTime').value,
+            prio: document.getElementById('inputPrio').value
+        };
+        if(!data.text) return;
+        if(editingElement) updateItemElement(editingElement, data);
+        else addItem(activeCell, data);
+        closeModal();
         saveData();
     }
 
-    // 移動処理
-    function moveItem(data) {
-        const newCol = prompt("移動先の日付を選択してください (1〜7):", data.element.parentElement.dataset.col);
-        if (!newCol || newCol < 1 || newCol > 7) return;
-
-        const targetCell = document.querySelector(`[data-type="${data.element.parentElement.dataset.type}"][data-col="${newCol}"]`);
-        if (targetCell) {
-            targetCell.insertBefore(data.element, targetCell.lastChild);
-            saveData();
-        }
-    }
-
     function addItem(cell, data) {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = `item ${cell.dataset.type}-item`;
+        const item = document.createElement('div');
+        item.className = `item item-${data.prio}`;
+        item.dataset.prio = data.prio;
+        item.onclick = (e) => { if(e.target.tagName !== 'BUTTON') openModal(cell, item); };
+
+        const body = document.createElement('div');
+        item.appendChild(body);
+
+        const tools = document.createElement('div');
+        tools.className = 'item-tools';
         
-        itemDiv.onclick = (e) => {
-            if (e.target.className === 'delete-btn') return;
-            const currentData = {
-                text: itemDiv.querySelector('strong').textContent,
-                time: itemDiv.querySelector('.time-val') ? itemDiv.querySelector('.time-val').textContent : "",
-                priority: itemDiv.classList.contains('priority-high') ? "高" : "通常",
-                element: itemDiv
-            };
-            showInputDialog(cell, currentData);
-        };
-
+        const moveBtn = document.createElement('button');
+        moveBtn.className = 'tool-btn move-btn'; moveBtn.textContent = '➡ 移動';
+        moveBtn.onclick = (e) => { e.stopPropagation(); startMove(item); };
+        
         const delBtn = document.createElement('button');
-        delBtn.innerHTML = '×';
-        delBtn.className = 'delete-btn';
-        delBtn.onclick = (e) => {
-            e.stopPropagation();
-            if(confirm("削除しますか？")) { itemDiv.remove(); saveData(); }
-        };
+        delBtn.className = 'tool-btn del-btn'; delBtn.textContent = '× 削除';
+        delBtn.onclick = (e) => { e.stopPropagation(); if(confirm("削除しますか？")){item.remove(); saveData();} };
 
-        itemDiv.appendChild(delBtn);
-        updateItemElement(itemDiv, data);
-        cell.insertBefore(itemDiv, cell.lastChild);
+        tools.appendChild(moveBtn); tools.appendChild(delBtn);
+        item.appendChild(tools);
+
+        updateItemElement(item, data);
+        cell.insertBefore(item, cell.lastChild);
     }
 
-    function updateItemElement(element, data) {
-        element.classList.toggle('priority-high', data.priority === "高");
-        let html = `<strong>${data.text}</strong>`;
-        if (data.time || data.priority === "高") {
-            html += `<span class="info-row">`;
-            if (data.priority === "高") html += `<span class="high-label">●高優先</span>`;
-            if (data.time) html += `⏳<span class="time-val">${data.time}</span>`;
-            html += `</span>`;
+    function updateItemElement(el, data) {
+        el.className = `item item-${data.prio}`;
+        el.dataset.prio = data.prio;
+        el.firstChild.innerHTML = `<strong>${data.text}</strong>${data.time ? `<div style="font-size:0.7rem; color:#666">⏳<span class="t-val">${data.time}</span>分</div>` : ''}`;
+    }
+
+    function startMove(el) {
+        movingElement = el;
+        document.getElementById('mainBody').classList.add('moving-mode');
+        alert("移動先の日付（黄色いエリア）をタップしてください");
+    }
+
+    function finalizeMove(targetCell) {
+        if(targetCell.dataset.type !== movingElement.parentElement.dataset.type) {
+            alert("タスクはタスク行へ、重要は重要行へしか移動できません。");
+            return;
         }
-        const oldDelBtn = element.querySelector('.delete-btn');
-        element.innerHTML = html;
-        element.appendChild(oldDelBtn);
+        targetCell.insertBefore(movingElement, targetCell.lastChild);
+        movingElement = null;
+        document.getElementById('mainBody').classList.remove('moving-mode');
+        saveData();
     }
 
     function saveData() {
         const data = [];
         document.querySelectorAll('.item').forEach(item => {
             data.push({
-                parentCol: item.parentElement.dataset.col,
-                parentType: item.parentElement.dataset.type,
+                parentID: item.parentElement.id,
                 text: item.querySelector('strong').textContent,
-                time: item.querySelector('.time-val') ? item.querySelector('.time-val').textContent : "",
-                priority: item.classList.contains('priority-high') ? "高" : "通常"
+                time: item.querySelector('.t-val')?.textContent || "",
+                prio: item.dataset.prio
             });
         });
-        localStorage.setItem('scheduleData_v1.5', JSON.stringify(data));
+        localStorage.setItem('scheduleData_v1.6', JSON.stringify(data));
     }
 
     function loadData() {
-        const saved = localStorage.getItem('scheduleData_v1.5');
+        const saved = localStorage.getItem('scheduleData_v1.6');
         if (!saved) return;
         JSON.parse(saved).forEach(d => {
-            const targetCell = document.querySelector(`[data-type="${d.parentType}"][data-col="${d.parentCol}"]`);
-            if (targetCell) addItem(targetCell, d);
+            const cell = document.getElementById(d.parentID);
+            if (cell) addItem(cell, d);
         });
     }
 
-    window.onload = loadData;
+    window.onload = init;
 </script>
 </body>
 </html>
