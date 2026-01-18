@@ -3,158 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKED v1.14 Final</title>
+    <title>SKED v1.15 Vertical</title>
     <style>
         :root {
-            --cell-width: 140px; --label-width: 80px; --backlog-width: 110px;
-            --border-color: #ddd;
             --prio-A: #ff5252; --prio-B: #ff9800; --prio-C: #2196f3; --prio-D: #4caf50; --prio-E: #9e9e9e;
+            --bg-color: #f0f2f5; --card-bg: #ffffff;
         }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; overflow-x: hidden; }
+        body { font-family: -apple-system, sans-serif; margin: 0; background: var(--bg-color); color: #333; padding-bottom: 50px; }
         .lock-scroll { overflow: hidden !important; }
 
-        .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 0 5px; }
-        .version-badge { background: #333; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
-
-        .outer-wrapper { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 12px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        header { background: #fff; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
         
-        /* レイアウト構成 */
-        .schedule-container { 
-            display: grid; 
-            grid-template-columns: var(--label-width) var(--backlog-width) repeat(7, var(--cell-width)); 
-            min-width: min-content; 
-        }
-        .cell { border-right: 0.5px solid var(--border-color); border-bottom: 0.5px solid var(--border-color); padding: 8px; min-height: 160px; position: relative; }
+        .container { padding: 10px; }
 
-        /* 左端固定ラベル */
-        .label { 
-            background: #f8f9fa; font-weight: bold; font-size: 0.8rem;
-            display: flex; align-items: center; justify-content: center; 
-            position: sticky; left: 0; z-index: 30; 
-            border-right: 2px solid #ccc; 
-        }
+        /* 日付ごとのカード */
+        .day-card { background: var(--card-bg); border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
+        .day-header { background: #f8f9fa; padding: 10px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .day-title { font-weight: bold; font-size: 1rem; }
         
-        .backlog-cell { background: #f9f9fb; border-right: 2px solid #ddd; }
-        
-        .header-cell { background: #eee; text-align: center; padding: 8px 2px; position: sticky; top: 0; z-index: 10; font-size: 0.75rem; font-weight: bold; }
-        .backlog-header { background: #cfd8dc; color: #455a64; border-right: 2px solid #ddd; }
+        .backlog-card { border: 2px dashed #cfd8dc; background: #fafbfc; }
+        .backlog-header { background: #cfd8dc; }
 
-        .limit-info { font-size: 0.6rem; display: block; margin-top: 4px; padding: 2px; border-radius: 4px; background: rgba(255,255,255,0.7); font-weight: normal; color: #666; }
-        .over-limit { color: #ff5252; font-weight: bold; background: #ffebee; }
+        /* セクション（重要・タスク） */
+        .section-label { font-size: 0.7rem; color: #888; padding: 8px 15px 2px; text-transform: uppercase; letter-spacing: 1px; }
+        .drop-zone { padding: 5px 10px 15px; min-height: 50px; }
 
-        /* アイテムスタイル */
+        /* アイテム */
         .item { 
-            position: relative; padding: 10px; margin-bottom: 8px; border-radius: 8px; font-size: 0.8rem; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); background: #fff; border-left: 6px solid #ccc;
-            touch-action: none; transition: transform 0.1s;
+            position: relative; padding: 12px; margin: 5px; border-radius: 8px; font-size: 0.9rem; 
+            background: #fff; border: 1px solid #eee; border-left: 6px solid #ccc;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); touch-action: none;
         }
         .item-A { border-left-color: var(--prio-A); } .item-B { border-left-color: var(--prio-B); } 
         .item-C { border-left-color: var(--prio-C); } .item-D { border-left-color: var(--prio-D); }
         .item-E { border-left-color: var(--prio-E); }
-        
-        /* ドラッグ中 */
-        .dragging { 
-            position: fixed !important; pointer-events: none; z-index: 9999; 
-            width: 110px; transform: scale(1.1); opacity: 0.85; 
-            box-shadow: 0 12px 24px rgba(0,0,0,0.2); 
-        }
-        .drop-target { background: #e3f2fd !important; }
 
-        .del-btn { position: absolute; right: 4px; top: 4px; border: none; background: #f0f0f0; color: #bbb; border-radius: 4px; width: 18px; height: 18px; font-size: 10px; cursor: pointer; }
-        .add-btn { display: block; width: 100%; border: 1px dashed #bbb; background: #fafafa; color: #aaa; padding: 6px; border-radius: 6px; font-size: 0.7rem; margin-top: 5px; cursor: pointer; }
+        .dragging { position: fixed !important; pointer-events: none; z-index: 9999; width: 90% !important; opacity: 0.9; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .drop-target { background: #e3f2fd !important; border-radius: 8px; }
+
+        .del-btn { position: absolute; right: 5px; top: 5px; border: none; background: #f5f5f5; color: #ccc; border-radius: 4px; width: 22px; height: 22px; }
+        .add-btn { width: calc(100% - 20px); margin: 0 10px 10px; padding: 8px; border: 1px dashed #ccc; border-radius: 8px; background: #fff; color: #999; font-size: 0.8rem; }
+
+        .limit-info { font-size: 0.75rem; color: #666; }
+        .over-limit { color: #ff5252; font-weight: bold; }
 
         /* モーダル */
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 3000; align-items: center; justify-content: center; padding: 20px; }
-        .modal-content { background: white; padding: 20px; border-radius: 16px; width: 100%; max-width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .modal-content h3 { margin: 0 0 15px 0; font-size: 1.1rem; }
-        .modal-input-group { margin-bottom: 15px; }
-        .modal-input-group label { display: block; font-size: 0.8rem; color: #666; margin-bottom: 5px; }
-        .modal-content input, .modal-content select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
-        .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
-        .modal-btns button { flex: 1; padding: 14px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
-        .btn-cancel { background: #f0f0f0; color: #333; }
-        .btn-save { background: #2196f3; color: white; }
+        .modal-content { background: white; padding: 20px; border-radius: 16px; width: 100%; max-width: 400px; }
+        .modal-content input, .modal-content select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
     </style>
 </head>
 <body>
 
-    <div class="app-header">
-        <h2 style="font-size: 1.2rem; margin:0;">SKED</h2>
-        <span class="version-badge">v1.14 Complete</span>
+<header>
+    <div style="font-weight:bold; font-size:1.2rem;">SKED 縦並び版</div>
+    <div id="total-status" style="font-size:0.7rem; color:#888;">Vertical v1.15</div>
+</header>
+
+<div class="container" id="board">
+    <div class="day-card backlog-card">
+        <div class="day-header backlog-header">
+            <span class="day-title">未定メモ</span>
+        </div>
+        <div class="section-label">重要</div>
+        <div id="m-backlog" class="drop-zone" data-type="milestone"></div>
+        <div class="section-label">タスク</div>
+        <div id="t-backlog" class="drop-zone" data-type="task"></div>
+        <button class="add-btn" onclick="openModal(document.getElementById('t-backlog'))">+ 追加</button>
     </div>
 
-    <div class="outer-wrapper">
-        <div class="schedule-container" id="board">
-            <div class="cell label">日付</div>
-            <div class="cell header-cell backlog-header">未定メモ</div>
-            <div class="cell header-cell" onclick="setDayLimit(1)" id="h-1">1/16<span class="limit-info" id="li-1">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(2)" id="h-2">1/17<span class="limit-info" id="li-2">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(3)" id="h-3">1/18<span class="limit-info" id="li-3">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(4)" id="h-4">1/19<span class="limit-info" id="li-4">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(5)" id="h-5">1/20<span class="limit-info" id="li-5">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(6)" id="h-6">1/21<span class="limit-info" id="li-6">未設定</span></div>
-            <div class="cell header-cell" onclick="setDayLimit(7)" id="h-7">1/22<span class="limit-info" id="li-7">未設定</span></div>
+    <div class="day-card">
+        <div class="day-header" onclick="setDayLimit(1)">
+            <span class="day-title">1/16 (金)</span>
+            <span class="limit-info" id="li-1">上限未設定</span>
+        </div>
+        <div class="section-label">重要</div>
+        <div id="m-1" class="drop-zone" data-type="milestone"></div>
+        <div class="section-label">タスク</div>
+        <div id="t-1" class="drop-zone" data-type="task"></div>
+        <button class="add-btn" onclick="openModal(document.getElementById('t-1'))">+ タスクを追加</button>
+    </div>
 
-            <div class="cell label">重要</div>
-            <div id="m-backlog" class="cell backlog-cell milestone-row" data-type="milestone"></div>
-            <div id="m-1" class="cell milestone-row" data-type="milestone"></div>
-            <div id="m-2" class="cell milestone-row" data-type="milestone"></div>
-            <div id="m-3" class="cell milestone-row" data-type="milestone"></div>
-            <div id="m-4" class="cell milestone-row" data-type="milestone"></div>
-            <div id="m-5" class="cell milestone-row" data-type="milestone"></div>
-            <div id="m-6" class="cell milestone-row" data-type="milestone"></div>
-            <div id="m-7" class="cell milestone-row" data-type="milestone"></div>
+    <div class="day-card">
+        <div class="day-header" onclick="setDayLimit(2)">
+            <span class="day-title">1/17 (土)</span>
+            <span class="limit-info" id="li-2">上限未設定</span>
+        </div>
+        <div id="m-2" class="drop-zone" data-type="milestone"></div>
+        <div id="t-2" class="drop-zone" data-type="task"></div>
+        <button class="add-btn" onclick="openModal(document.getElementById('t-2'))">+ タスクを追加</button>
+    </div>
 
-            <div class="cell label">タスク</div>
-            <div id="t-backlog" class="cell backlog-cell task-row" data-type="task"></div>
-            <div id="t-1" class="cell task-row" data-type="task"></div>
-            <div id="t-2" class="cell task-row" data-type="task"></div>
-            <div id="t-3" class="cell task-row" data-type="task"></div>
-            <div id="t-4" class="cell task-row" data-type="task"></div>
-            <div id="t-5" class="cell task-row" data-type="task"></div>
-            <div id="t-6" class="cell task-row" data-type="task"></div>
-            <div id="t-7" class="cell task-row" data-type="task"></div>
+    <div id="dynamic-days"></div>
+</div>
+
+<div id="modal">
+    <div class="modal-content">
+        <h3>タスク編集</h3>
+        <input type="text" id="inputTxt" placeholder="内容">
+        <input type="number" id="inputTime" inputmode="numeric" placeholder="時間（分）">
+        <select id="inputPrio">
+            <option value="A">優先度 A</option><option value="B">優先度 B</option>
+            <option value="C" selected>優先度 C</option><option value="D">優先度 D</option>
+            <option value="E">優先度 E</option>
+        </select>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button onclick="closeModal()" style="flex:1; padding:12px; border-radius:8px; border:1px solid #ddd; background:none;">戻る</button>
+            <button onclick="confirmModal()" style="flex:1; padding:12px; border-radius:8px; border:none; background:#2196f3; color:white;">保存</button>
         </div>
     </div>
-
-    <div id="modal">
-        <div class="modal-content">
-            <h3 id="modalTitle">タスク編集</h3>
-            <div class="modal-input-group">
-                <label>内容</label>
-                <input type="text" id="inputTxt" placeholder="例：会議、買い物">
-            </div>
-            <div class="modal-input-group">
-                <label>時間（分）</label>
-                <input type="number" id="inputTime" inputmode="numeric" placeholder="例：30">
-            </div>
-            <div class="modal-input-group">
-                <label>優先度</label>
-                <select id="inputPrio">
-                    <option value="A">A (最高)</option><option value="B">B</option>
-                    <option value="C" selected>C</option><option value="D">D</option>
-                    <option value="E">E (低)</option>
-                </select>
-            </div>
-            <div class="modal-btns">
-                <button class="btn-cancel" onclick="closeModal()">戻る</button>
-                <button class="btn-save" onclick="confirmModal()">保存する</button>
-            </div>
-        </div>
-    </div>
+</div>
 
 <script>
     let activeCell = null, editingElement = null, draggedItem = null, longPressTimer = null, currentDropTarget = null;
     let dayLimits = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 };
 
     function init() {
-        document.querySelectorAll('.milestone-row, .task-row').forEach(cell => {
-            const btn = document.createElement('button');
-            btn.className = 'add-btn'; btn.textContent = '+ 追加';
-            btn.onclick = (e) => { e.stopPropagation(); openModal(cell); };
-            cell.appendChild(btn);
-        });
         loadData();
         updateAllCalculations();
     }
@@ -166,30 +131,29 @@
 
         const onTouchStart = (e) => {
             if(e.target.tagName === 'BUTTON') return;
-            // 長押し反応時間を300msに設定
             longPressTimer = setTimeout(() => {
                 draggedItem = null; item.classList.remove('dragging');
                 document.body.classList.remove('lock-scroll');
                 openModal(item.parentElement, item);
                 if(window.navigator.vibrate) window.navigator.vibrate(15);
-            }, 300);
+            }, 300); // 0.3秒長押しで編集
             draggedItem = item;
         };
 
         const onTouchMove = (e) => {
             if(!draggedItem) return;
-            clearTimeout(longPressTimer); // 動いたら長押しキャンセル
+            clearTimeout(longPressTimer);
             const touch = e.touches ? e.touches[0] : e;
             if(!item.classList.contains('dragging')) {
                 item.classList.add('dragging'); document.body.classList.add('lock-scroll');
             }
-            draggedItem.style.left = (touch.clientX - 50) + 'px';
-            draggedItem.style.top = (touch.clientY - 20) + 'px';
+            draggedItem.style.left = '5%';
+            draggedItem.style.top = (touch.clientY - 25) + 'px';
 
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
-            const dropCell = target?.closest('.cell');
-            document.querySelectorAll('.cell').forEach(c => c.classList.remove('drop-target'));
-            if(dropCell && !dropCell.classList.contains('label') && dropCell.dataset.type === item.parentElement.dataset.type) {
+            const dropCell = target?.closest('.drop-zone');
+            document.querySelectorAll('.drop-zone').forEach(c => c.classList.remove('drop-target'));
+            if(dropCell && dropCell.dataset.type === item.parentElement.dataset.type) {
                 dropCell.classList.add('drop-target'); currentDropTarget = dropCell;
             } else { currentDropTarget = null; }
         };
@@ -197,11 +161,11 @@
         const onTouchEnd = () => {
             clearTimeout(longPressTimer);
             if(draggedItem) {
-                if(currentDropTarget) currentDropTarget.insertBefore(draggedItem, currentDropTarget.lastChild);
+                if(currentDropTarget) currentDropTarget.appendChild(draggedItem);
                 draggedItem.classList.remove('dragging');
                 draggedItem.style.position = draggedItem.style.left = draggedItem.style.top = '';
                 draggedItem = null; document.body.classList.remove('lock-scroll');
-                document.querySelectorAll('.cell').forEach(c => c.classList.remove('drop-target'));
+                document.querySelectorAll('.drop-zone').forEach(c => c.classList.remove('drop-target'));
                 updateAllCalculations(); saveData();
             }
         };
@@ -212,16 +176,16 @@
         
         const delBtn = document.createElement('button');
         delBtn.className = 'del-btn'; delBtn.textContent = '×';
-        delBtn.onclick = (e) => { e.stopPropagation(); if(confirm("消去しますか？")){item.remove(); updateAllCalculations(); saveData();} };
-        item.appendChild(document.createElement('div')); // 内容用コンテナ
+        delBtn.onclick = (e) => { e.stopPropagation(); if(confirm("消去？")){item.remove(); updateAllCalculations(); saveData();} };
+        item.appendChild(document.createElement('div'));
         item.appendChild(delBtn);
 
         updateItemElement(item, data);
-        cell.insertBefore(item, cell.lastChild);
+        cell.appendChild(item);
     }
 
     function setDayLimit(col) {
-        const val = prompt(`${col}日目の活動可能時間を分で入力:`, dayLimits[col] || "");
+        const val = prompt(`この日の上限時間を分で入力:`, dayLimits[col] || "");
         if (val !== null) { dayLimits[col] = parseInt(val) || 0; saveData(); updateAllCalculations(); }
     }
 
@@ -231,24 +195,22 @@
             const tasks = document.querySelectorAll(`#t-${i} .t-val, #m-${i} .t-val`);
             let total = 0; tasks.forEach(t => total += parseInt(t.textContent) || 0);
             const infoEl = document.getElementById(`li-${i}`);
-            if (limit === 0) { 
-                infoEl.textContent = `計 ${total}分`; infoEl.classList.remove('over-limit'); 
-            } else { 
+            if(!infoEl) continue;
+            if (limit === 0) { infoEl.textContent = `計 ${total}分`; infoEl.className="limit-info"; } 
+            else { 
                 const diff = limit - total; 
-                infoEl.textContent = diff >= 0 ? `残 ${diff}分 / ${limit}` : `不足 ${Math.abs(diff)}分`; 
-                infoEl.classList.toggle('over-limit', diff < 0); 
+                infoEl.textContent = diff >= 0 ? `残 ${diff}分` : `不足 ${Math.abs(diff)}分`; 
+                infoEl.className = "limit-info " + (diff < 0 ? "over-limit" : "");
             }
         }
     }
 
     function openModal(cell, el = null) {
         activeCell = cell; editingElement = el;
-        document.getElementById('modalTitle').textContent = el ? "タスク編集" : "新規タスク";
         document.getElementById('inputTxt').value = el ? el.querySelector('strong').textContent : "";
         document.getElementById('inputTime').value = el ? (el.querySelector('.t-val')?.textContent || "") : "";
         document.getElementById('inputPrio').value = el ? el.dataset.prio : "C";
         document.getElementById('modal').style.display = 'flex';
-        document.getElementById('inputTxt').focus();
     }
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
     function confirmModal() {
@@ -257,21 +219,19 @@
         if(editingElement) updateItemElement(editingElement, data); else addItem(activeCell, data);
         closeModal(); updateAllCalculations(); saveData();
     }
-
     function updateItemElement(el, data) {
         el.className = `item item-${data.prio}`; el.dataset.prio = data.prio;
-        el.firstChild.innerHTML = `<strong>${data.text}</strong>${data.time ? `<div style="font-size:0.7rem; color:#666; margin-top:2px;">⏳<span class="t-val">${data.time}</span>分</div>` : ''}`;
+        el.firstChild.innerHTML = `<strong>${data.text}</strong>${data.time ? `<span style="margin-left:10px; font-size:0.7rem; color:#888;">⏳<span class="t-val">${data.time}</span>分</span>` : ''}`;
     }
-
     function saveData() {
         const data = { items: [], limits: dayLimits };
         document.querySelectorAll('.item').forEach(item => {
             data.items.push({ parentID: item.parentElement.id, text: item.querySelector('strong').textContent, time: item.querySelector('.t-val')?.textContent || "", prio: item.dataset.prio });
         });
-        localStorage.setItem('scheduleData_final', JSON.stringify(data));
+        localStorage.setItem('scheduleData_v1.15v', JSON.stringify(data));
     }
     function loadData() {
-        const saved = localStorage.getItem('scheduleData_final');
+        const saved = localStorage.getItem('scheduleData_v1.15v');
         if (!saved) return;
         const parsed = JSON.parse(saved);
         if(parsed.limits) dayLimits = parsed.limits;
