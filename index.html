@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKED v1.17 Foldable All</title>
+    <title>SKED v1.18 Sorting</title>
     <style>
         :root {
             --prio-A: #ff5252; --prio-B: #ff9800; --prio-C: #2196f3; --prio-D: #4caf50; --prio-E: #9e9e9e;
@@ -14,37 +14,31 @@
         .lock-scroll { overflow: hidden !important; }
 
         header { background: #fff; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
-
         .container { padding: 10px; }
 
         .day-card { background: var(--card-bg); border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
-        
-        .day-header { 
-            background: #f8f9fa; padding: 12px 15px; border-bottom: 1px solid #eee; 
-            display: flex; justify-content: space-between; align-items: center; cursor: pointer;
-        }
+        .day-header { background: #f8f9fa; padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .day-title::before { content: '▼'; display: inline-block; margin-right: 8px; font-size: 0.7rem; transition: transform 0.2s; }
         .collapsed .day-title::before { transform: rotate(-90deg); }
         .day-title { font-weight: bold; font-size: 0.95rem; display: flex; align-items: center; }
-        
-        /* 特別に「未定」用のヘッダー色 */
-        .backlog-header { background: #cfd8dc !important; border-bottom-color: #b0bec5; }
+        .backlog-header { background: #cfd8dc !important; }
 
         .day-content { display: block; }
         .collapsed .day-content { display: none; }
-
         .section-label { font-size: 0.7rem; color: #999; padding: 10px 15px 2px; text-transform: uppercase; font-weight: bold; }
-        .drop-zone { padding: 5px 10px 10px; min-height: 40px; }
+        .drop-zone { padding: 5px 10px 10px; min-height: 45px; }
 
         .item { 
-            position: relative; padding: 12px; margin: 5px; border-radius: 8px; font-size: 0.9rem; 
+            position: relative; padding: 12px; margin: 5px 0; border-radius: 8px; font-size: 0.9rem; 
             background: #fff; border: 1px solid #eee; border-left: 6px solid #ccc;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); touch-action: none;
         }
         .item-A { border-left-color: var(--prio-A); } .item-B { border-left-color: var(--prio-B); } 
         .item-C { border-left-color: var(--prio-C); }
 
-        .dragging { position: fixed !important; pointer-events: none; z-index: 9999; width: 90% !important; opacity: 0.9; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .dragging { position: fixed !important; pointer-events: none; z-index: 9999; width: 90% !important; opacity: 0.8; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .drop-target-item { border-top: 4px solid #2196f3 !important; } /* 並び替えのガイド線 */
+
         .del-btn { position: absolute; right: 5px; top: 5px; border: none; background: #f5f5f5; color: #ccc; border-radius: 4px; width: 22px; height: 22px; }
         .add-btn { width: calc(100% - 20px); margin: 0 10px 10px; padding: 10px; border: 1px dashed #ccc; border-radius: 8px; background: #fff; color: #999; font-size: 0.8rem; }
 
@@ -56,7 +50,7 @@
 <body>
 
 <header>
-    <div style="font-weight:bold; font-size:1.1rem;">SKED v1.17</div>
+    <div style="font-weight:bold; font-size:1.1rem;">SKED v1.18 Sorting</div>
 </header>
 
 <div class="container" id="board">
@@ -70,7 +64,6 @@
             <button class="add-btn" onclick="openModal(document.getElementById('t-backlog'))">+ 未定タスクを追加</button>
         </div>
     </div>
-
     <div id="days-list"></div>
 </div>
 
@@ -94,41 +87,30 @@
 <script>
     const dates = ["1/16 (金)", "1/17 (土)", "1/18 (日)", "1/19 (月)", "1/20 (火)", "1/21 (水)", "1/22 (木)"];
     let dayLimits = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 };
-    let activeCell = null, editingElement = null, draggedItem = null, longPressTimer = null, currentDropTarget = null;
+    let activeCell = null, editingElement = null, draggedItem = null, longPressTimer = null, currentDropTarget = null, currentDropBefore = null;
 
     function init() {
         const list = document.getElementById('days-list');
         dates.forEach((date, i) => {
             const idx = i + 1;
-            const html = `
-                <div class="day-card" id="card-${idx}">
-                    <div class="day-header" onclick="toggleFold(${idx}, event)">
-                        <span class="day-title">${date}</span>
-                        <span class="limit-info" id="li-${idx}" onclick="setLimit(${idx}, event)" style="font-size:0.75rem; color:#666;">計 0分</span>
-                    </div>
-                    <div class="day-content">
-                        <div class="section-label">重要</div>
-                        <div id="m-${idx}" class="drop-zone" data-type="milestone"></div>
-                        <div class="section-label">タスク</div>
-                        <div id="t-${idx}" class="drop-zone" data-type="task"></div>
-                        <button class="add-btn" onclick="openModal(document.getElementById('t-${idx}'))">+ 追加</button>
-                    </div>
-                </div>`;
+            const html = `<div class="day-card" id="card-${idx}">
+                <div class="day-header" onclick="toggleFold(${idx}, event)">
+                    <span class="day-title">${date}</span>
+                    <span class="limit-info" id="li-${idx}" onclick="setLimit(${idx}, event)" style="font-size:0.75rem; color:#666;">計 0分</span>
+                </div>
+                <div class="day-content">
+                    <div class="section-label">重要</div><div id="m-${idx}" class="drop-zone" data-type="milestone"></div>
+                    <div class="section-label">タスク</div><div id="t-${idx}" class="drop-zone" data-type="task"></div>
+                    <button class="add-btn" onclick="openModal(document.getElementById('t-${idx}'))">+ 追加</button>
+                </div></div>`;
             list.insertAdjacentHTML('beforeend', html);
         });
-        loadData();
-        updateAllCalculations();
+        loadData(); updateAllCalculations();
     }
 
     function toggleFold(id, e) {
         if (e.target.classList.contains('limit-info')) return;
         document.getElementById(`card-${id}`).classList.toggle('collapsed');
-    }
-
-    function setLimit(idx, e) {
-        e.stopPropagation();
-        const val = prompt(`上限時間を分で入力:`, dayLimits[idx] || "");
-        if (val !== null) { dayLimits[idx] = parseInt(val) || 0; saveData(); updateAllCalculations(); }
     }
 
     function addItem(cell, data) {
@@ -158,24 +140,37 @@
             draggedItem.style.top = (touch.clientY - 25) + 'px';
 
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            // カード自動展開
             const hoveredCard = target?.closest('.day-card');
-            if(hoveredCard && hoveredCard.classList.contains('collapsed')) {
-                hoveredCard.classList.remove('collapsed');
-            }
+            if(hoveredCard?.classList.contains('collapsed')) hoveredCard.classList.remove('collapsed');
 
             const dropCell = target?.closest('.drop-zone');
-            document.querySelectorAll('.drop-zone').forEach(c => c.classList.remove('drop-target'));
+            const targetItem = target?.closest('.item');
+
+            // リセット
+            document.querySelectorAll('.item').forEach(i => i.classList.remove('drop-target-item'));
+            currentDropTarget = null; currentDropBefore = null;
+
             if(dropCell && dropCell.dataset.type === item.parentElement.dataset.type) {
-                dropCell.classList.add('drop-target'); currentDropTarget = dropCell;
-            } else { currentDropTarget = null; }
+                currentDropTarget = dropCell;
+                if(targetItem && targetItem !== draggedItem) {
+                    targetItem.classList.add('drop-target-item');
+                    currentDropBefore = targetItem;
+                }
+            }
         };
 
         const onTouchEnd = () => {
             clearTimeout(longPressTimer);
             if(draggedItem) {
-                if(currentDropTarget) currentDropTarget.appendChild(draggedItem);
+                if(currentDropTarget) {
+                    if(currentDropBefore) currentDropTarget.insertBefore(draggedItem, currentDropBefore);
+                    else currentDropTarget.appendChild(draggedItem);
+                }
                 draggedItem.classList.remove('dragging');
                 draggedItem.style.position = draggedItem.style.left = draggedItem.style.top = '';
+                document.querySelectorAll('.item').forEach(i => i.classList.remove('drop-target-item'));
                 draggedItem = null; document.body.classList.remove('lock-scroll');
                 updateAllCalculations(); saveData();
             }
@@ -195,6 +190,8 @@
         cell.appendChild(item);
     }
 
+    // 他の関数（updateAllCalculations, setLimit, openModal, closeModal, confirmModal, updateItemElement, saveData, loadData）は前回同様
+    function setLimit(idx, e) { e.stopPropagation(); const val = prompt(`上限分:`, dayLimits[idx] || ""); if (val !== null) { dayLimits[idx] = parseInt(val) || 0; saveData(); updateAllCalculations(); } }
     function updateAllCalculations() {
         for (let i = 1; i <= 7; i++) {
             const limit = dayLimits[i];
@@ -202,47 +199,16 @@
             let total = 0; tasks.forEach(t => total += parseInt(t.textContent) || 0);
             const infoEl = document.getElementById(`li-${i}`);
             if(!infoEl) continue;
-            if (limit === 0) { infoEl.textContent = `計 ${total}分`; } 
-            else { 
-                const diff = limit - total; 
-                infoEl.textContent = diff >= 0 ? `残 ${diff}分` : `不足 ${Math.abs(diff)}分`; 
-                infoEl.style.color = diff < 0 ? "#ff5252" : "#666";
-            }
+            if (limit === 0) infoEl.textContent = `計 ${total}分`;
+            else { const diff = limit - total; infoEl.textContent = diff >= 0 ? `残 ${diff}分` : `不足 ${Math.abs(diff)}分`; infoEl.style.color = diff < 0 ? "#ff5252" : "#666"; }
         }
     }
-
-    function openModal(cell, el = null) {
-        activeCell = cell; editingElement = el;
-        document.getElementById('inputTxt').value = el ? el.querySelector('strong').textContent : "";
-        document.getElementById('inputTime').value = el ? (el.querySelector('.t-val')?.textContent || "") : "";
-        document.getElementById('inputPrio').value = el ? el.dataset.prio : "C";
-        document.getElementById('modal').style.display = 'flex';
-    }
+    function openModal(cell, el = null) { activeCell = cell; editingElement = el; document.getElementById('inputTxt').value = el ? el.querySelector('strong').textContent : ""; document.getElementById('inputTime').value = el ? (el.querySelector('.t-val')?.textContent || "") : ""; document.getElementById('inputPrio').value = el ? el.dataset.prio : "C"; document.getElementById('modal').style.display = 'flex'; }
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
-    function confirmModal() {
-        const data = { text: document.getElementById('inputTxt').value, time: document.getElementById('inputTime').value, prio: document.getElementById('inputPrio').value };
-        if(!data.text) return;
-        if(editingElement) updateItemElement(editingElement, data); else addItem(activeCell, data);
-        closeModal(); updateAllCalculations(); saveData();
-    }
-    function updateItemElement(el, data) {
-        el.className = `item item-${data.prio}`; el.dataset.prio = data.prio;
-        el.firstChild.innerHTML = `<strong>${data.text}</strong>${data.time ? `<span style="margin-left:8px; font-size:0.75rem; color:#888;">⏳<span class="t-val">${data.time}</span>分</span>` : ''}`;
-    }
-    function saveData() {
-        const data = { items: [], limits: dayLimits };
-        document.querySelectorAll('.item').forEach(item => {
-            data.items.push({ parentID: item.parentElement.id, text: item.querySelector('strong').textContent, time: item.querySelector('.t-val')?.textContent || "", prio: item.dataset.prio });
-        });
-        localStorage.setItem('scheduleData_v1.17', JSON.stringify(data));
-    }
-    function loadData() {
-        const saved = localStorage.getItem('scheduleData_v1.17');
-        if (!saved) return;
-        const parsed = JSON.parse(saved);
-        if(parsed.limits) dayLimits = parsed.limits;
-        parsed.items.forEach(d => { const cell = document.getElementById(d.parentID); if (cell) addItem(cell, d); });
-    }
+    function confirmModal() { const data = { text: document.getElementById('inputTxt').value, time: document.getElementById('inputTime').value, prio: document.getElementById('inputPrio').value }; if(!data.text) return; if(editingElement) updateItemElement(editingElement, data); else addItem(activeCell, data); closeModal(); updateAllCalculations(); saveData(); }
+    function updateItemElement(el, data) { el.className = `item item-${data.prio}`; el.dataset.prio = data.prio; el.firstChild.innerHTML = `<strong>${data.text}</strong>${data.time ? `<span style="margin-left:8px; font-size:0.75rem; color:#888;">⏳<span class="t-val">${data.time}</span>分</span>` : ''}`; }
+    function saveData() { const data = { items: [], limits: dayLimits }; document.querySelectorAll('.item').forEach(item => { if(!item.parentElement) return; data.items.push({ parentID: item.parentElement.id, text: item.querySelector('strong').textContent, time: item.querySelector('.t-val')?.textContent || "", prio: item.dataset.prio }); }); localStorage.setItem('scheduleData_v1.18', JSON.stringify(data)); }
+    function loadData() { const saved = localStorage.getItem('scheduleData_v1.18'); if (!saved) return; const parsed = JSON.parse(saved); if(parsed.limits) dayLimits = parsed.limits; parsed.items.forEach(d => { const cell = document.getElementById(d.parentID); if (cell) addItem(cell, d); }); }
     window.onload = init;
 </script>
 </body>
