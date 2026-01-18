@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKED v1.21 Time Analysis</title>
+    <title>SKED v1.22 Fast Edit</title>
     <style>
         :root {
             --prio-A: #ff5252; --prio-B: #ff9800; --prio-C: #2196f3; --prio-D: #4caf50; --prio-E: #9e9e9e;
@@ -15,10 +15,10 @@
         .lock-scroll { overflow: hidden !important; }
 
         header { background: #fff; padding: 10px 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; height: 55px; }
-        .logo { font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
-        .ver { font-size: 0.7rem; background: #eee; padding: 2px 6px; border-radius: 4px; color: #666; }
+        .logo { font-weight: bold; font-size: 1.1rem; }
+        .ver { font-size: 0.7rem; background: #eee; padding: 2px 6px; border-radius: 4px; color: #666; margin-left: 5px; }
         
-        .menu-btn { width: 40px; height: 40px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; cursor: pointer; border-radius: 8px; }
+        .menu-btn { width: 40px; height: 40px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; }
         .menu-btn span { width: 24px; height: 2px; background: #333; border-radius: 2px; }
 
         #side-menu { position: fixed; top: 0; right: calc(-1 * var(--menu-width)); width: var(--menu-width); height: 100%; background: #fff; z-index: 2000; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 20px; }
@@ -26,51 +26,54 @@
         #menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1500; display: none; opacity: 0; transition: 0.3s; }
         #menu-overlay.show { display: block; opacity: 1; }
 
-        .stats-box { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #eee; }
-        .stats-label { font-size: 0.75rem; color: #888; margin-bottom: 5px; }
-        .stats-value { font-size: 1.2rem; font-weight: bold; color: #2196f3; }
-
         .container { padding: 10px; }
         .day-card { background: var(--card-bg); border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
-        .day-header { background: #f8f9fa; padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .day-header { background: #f8f9fa; padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .day-title { font-weight: bold; font-size: 0.95rem; display: flex; align-items: center; }
         .day-title::before { content: '▼'; display: inline-block; margin-right: 8px; font-size: 0.7rem; transition: transform 0.2s; }
         .collapsed .day-title::before { transform: rotate(-90deg); }
         
-        /* 時間表示のバッジ */
         .time-badge { font-size: 0.75rem; font-weight: bold; padding: 4px 10px; border-radius: 20px; background: #e3f2fd; color: #1976d2; }
         .time-over { background: #ffebee; color: #ef5350; }
 
         .day-content { display: block; }
         .collapsed .day-content { display: none; }
         .drop-zone { padding: 5px 10px 10px; min-height: 45px; }
-        .item { position: relative; padding: 12px; margin: 5px 0; border-radius: 8px; font-size: 0.9rem; background: #fff; border: 1px solid #eee; border-left: 6px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,0.1); touch-action: none; }
+
+        .item { 
+            position: relative; padding: 12px; margin: 8px 0; border-radius: 8px; font-size: 0.9rem; 
+            background: #fff; border: 1px solid #eee; border-left: 6px solid #ccc; 
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1); touch-action: none; 
+            user-select: none;
+        }
         .item-A { border-left-color: var(--prio-A); } .item-B { border-left-color: var(--prio-B); } 
-        .dragging { position: fixed !important; pointer-events: none; z-index: 9999; width: 90% !important; opacity: 0.8; }
+        .dragging { position: fixed !important; pointer-events: none; z-index: 9999; width: 90% !important; opacity: 0.8; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
         .drop-target-item { border-top: 4px solid #2196f3 !important; }
-        .del-btn { position: absolute; right: 5px; top: 5px; border: none; background: #f5f5f5; color: #ccc; border-radius: 4px; width: 22px; height: 22px; }
-        .add-btn { width: calc(100% - 20px); margin: 0 10px 10px; padding: 10px; border: 1px dashed #ccc; border-radius: 8px; background: #fff; color: #999; font-size: 0.8rem; }
+
+        .del-btn { position: absolute; right: 0; top: 0; border: none; background: transparent; color: #ddd; width: 35px; height: 100%; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .add-btn { width: calc(100% - 20px); margin: 0 10px 10px; padding: 12px; border: 1px dashed #ccc; border-radius: 8px; background: #fff; color: #999; font-size: 0.85rem; }
+
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 3000; align-items: center; justify-content: center; padding: 20px; }
-        .modal-content { background: white; padding: 20px; border-radius: 16px; width: 100%; max-width: 400px; }
-        .modal-content input, .modal-content select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
+        .modal-content { background: white; padding: 20px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .modal-content input, .modal-content select { width: 100%; padding: 14px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="logo">SKED <span class="ver">v1.21</span></div>
+    <div class="logo">SKED <span class="ver">v1.22</span></div>
     <div class="menu-btn" onclick="toggleMenu()"><span></span><span style="margin:5px 0"></span><span></span></div>
 </header>
 
 <div id="menu-overlay" onclick="toggleMenu()"></div>
 <div id="side-menu">
     <div class="menu-content">
-        <h3>分析・設定</h3>
-        <div class="stats-box">
-            <div class="stats-label">全タスク合計時間</div>
-            <div class="stats-value" id="total-time-display">0 分</div>
+        <h3 style="margin-bottom:20px;">分析・設定</h3>
+        <div style="background:#f8f9fa; padding:15px; border-radius:10px; border:1px solid #eee; margin-bottom:20px;">
+            <div style="font-size:0.75rem; color:#888;">全タスク合計時間</div>
+            <div style="font-size:1.2rem; font-weight:bold; color:#2196f3;" id="total-time-display">0 分</div>
         </div>
-        <div class="menu-item" onclick="if(confirm('全削除しますか？')){localStorage.clear(); location.reload();}" style="color:red; padding:10px 0; border-top:1px solid #eee;">🗑 全データをリセット</div>
+        <div onclick="if(confirm('全データを消去しますか？')){localStorage.clear(); location.reload();}" style="color:#ff5252; padding:15px; border-top:1px solid #eee; font-size:0.9rem; cursor:pointer;">🗑 全データをリセット</div>
     </div>
 </div>
 
@@ -83,7 +86,7 @@
         <div class="day-content">
             <div id="m-backlog" class="drop-zone" data-type="milestone"></div>
             <div id="t-backlog" class="drop-zone" data-type="task"></div>
-            <button class="add-btn" onclick="openModal(document.getElementById('t-backlog'))">+ 追加</button>
+            <button class="add-btn" onclick="openModal(document.getElementById('t-backlog'))">+ タスクを追加</button>
         </div>
     </div>
     <div id="days-list"></div>
@@ -91,15 +94,15 @@
 
 <div id="modal">
     <div class="modal-content">
-        <h3>タスク編集</h3>
+        <h3 style="margin-top:0">タスク編集</h3>
         <input type="text" id="inputTxt" placeholder="内容">
-        <input type="number" id="inputTime" inputmode="numeric" placeholder="想定所要時間（分）">
+        <input type="number" id="inputTime" inputmode="numeric" placeholder="時間（分）">
         <select id="inputPrio">
-            <option value="A">優先 A (高)</option><option value="B">優先 B</option><option value="C" selected>優先 C (中)</option><option value="D">優先 D</option><option value="E">優先 E (低)</option>
+            <option value="A">優先 A</option><option value="B">優先 B</option><option value="C" selected>優先 C</option><option value="D">優先 D</option><option value="E">優先 E</option>
         </select>
         <div style="display:flex; gap:10px; margin-top:10px;">
-            <button onclick="closeModal()" style="flex:1; padding:12px; border-radius:8px; border:1px solid #ddd;">戻る</button>
-            <button onclick="confirmModal()" style="flex:1; padding:12px; border-radius:8px; border:none; background:#2196f3; color:white;">保存</button>
+            <button onclick="closeModal()" style="flex:1; padding:14px; border-radius:8px; border:1px solid #ddd; background:#fff;">戻る</button>
+            <button onclick="confirmModal()" style="flex:1; padding:14px; border-radius:8px; border:none; background:#2196f3; color:white; font-weight:bold;">保存</button>
         </div>
     </div>
 </div>
@@ -108,7 +111,8 @@
     const STORAGE_KEY = 'sked_persistent_data';
     const dates = ["1/19 (月)", "1/20 (火)", "1/21 (水)", "1/22 (木)", "1/23 (金)", "1/24 (土)", "1/25 (日)"];
     let dayLimits = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 };
-    let activeCell = null, editingElement = null, draggedItem = null, longPressTimer = null, currentDropTarget = null, currentDropBefore = null;
+    let activeCell = null, editingElement = null, draggedItem = null, startX, startY, isDraggingStarted = false;
+    let currentDropTarget = null, currentDropBefore = null;
 
     function toggleMenu() {
         document.getElementById('side-menu').classList.toggle('open');
@@ -125,24 +129,20 @@
                         <span class="day-title">${date}</span>
                         <span class="time-badge" id="li-${idx}" onclick="setLimit(${idx}, event)">計 0分</span>
                     </div>
-                    <div class="day-content">
-                        <div id="m-${idx}" class="drop-zone" data-type="milestone"></div>
-                        <div id="t-${idx}" class="drop-zone" data-type="task"></div>
-                        <button class="add-btn" onclick="openModal(document.getElementById('t-${idx}'))">+ 追加</button>
-                    </div>
+                    <div class="day-content"><div id="m-${idx}" class="drop-zone" data-type="milestone"></div><div id="t-${idx}" class="drop-zone" data-type="task"></div><button class="add-btn" onclick="openModal(document.getElementById('t-${idx}'))">+ 追加</button></div>
                 </div>`);
         });
         loadData(); updateAllCalculations();
     }
 
     function toggleFold(id, e) {
-        if (e.target.classList.contains('time-badge')) return;
+        if (e.target.closest('.time-badge')) return;
         document.getElementById(`card-${id}`).classList.toggle('collapsed');
     }
 
     function setLimit(idx, e) {
         e.stopPropagation();
-        const val = prompt(`この日の上限（分）を設定:`, dayLimits[idx] || "");
+        const val = prompt(`上限（分）:`, dayLimits[idx] || "");
         if (val !== null) { dayLimits[idx] = parseInt(val) || 0; saveData(); updateAllCalculations(); }
     }
 
@@ -151,50 +151,75 @@
         item.className = `item item-${data.prio}`;
         item.dataset.prio = data.prio;
         
-        const setupDrag = (e) => {
-            if(e.target.tagName === 'BUTTON') return;
-            longPressTimer = setTimeout(() => {
-                draggedItem = null; item.classList.remove('dragging');
-                openModal(item.parentElement, item);
-                if(window.navigator.vibrate) window.navigator.vibrate(15);
-            }, 300);
+        item.addEventListener('touchstart', (e) => {
+            if(e.target.closest('.del-btn')) return;
             draggedItem = item;
-        };
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            isDraggingStarted = false;
+        }, {passive: true});
 
-        item.addEventListener('touchstart', setupDrag, {passive: true});
         item.addEventListener('touchmove', (e) => {
             if(!draggedItem) return;
-            clearTimeout(longPressTimer);
             const touch = e.touches[0];
-            if(!item.classList.contains('dragging')) { item.classList.add('dragging'); document.body.classList.add('lock-scroll'); }
-            draggedItem.style.left = '5%'; draggedItem.style.top = (touch.clientY - 25) + 'px';
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
-            const dropCell = target?.closest('.drop-zone');
-            const targetItem = target?.closest('.item');
-            if(target?.closest('.day-card')?.classList.contains('collapsed')) target.closest('.day-card').classList.remove('collapsed');
-            document.querySelectorAll('.item').forEach(i => i.classList.remove('drop-target-item'));
-            currentDropTarget = null; currentDropBefore = null;
-            if(dropCell && dropCell.dataset.type === item.parentElement.dataset.type) {
-                currentDropTarget = dropCell;
-                if(targetItem && targetItem !== draggedItem) { targetItem.classList.add('drop-target-item'); currentDropBefore = targetItem; }
+            const moveX = Math.abs(touch.clientX - startX);
+            const moveY = Math.abs(touch.clientY - startY);
+
+            if(!isDraggingStarted && (moveX > 10 || moveY > 10)) {
+                isDraggingStarted = true;
+                item.classList.add('dragging');
+                document.body.classList.add('lock-scroll');
+                if(window.navigator.vibrate) window.navigator.vibrate(5);
+            }
+
+            if(isDraggingStarted) {
+                draggedItem.style.left = '5%';
+                draggedItem.style.top = (touch.clientY - 25) + 'px';
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                const dropCell = target?.closest('.drop-zone');
+                const targetItem = target?.closest('.item');
+                if(target?.closest('.day-card')?.classList.contains('collapsed')) target.closest('.day-card').classList.remove('collapsed');
+                
+                document.querySelectorAll('.item').forEach(i => i.classList.remove('drop-target-item'));
+                currentDropTarget = null; currentDropBefore = null;
+                
+                if(dropCell && dropCell.dataset.type === item.parentElement.dataset.type) {
+                    currentDropTarget = dropCell;
+                    if(targetItem && targetItem !== draggedItem) {
+                        targetItem.classList.add('drop-target-item');
+                        currentDropBefore = targetItem;
+                    }
+                }
             }
         }, {passive: false});
 
-        item.addEventListener('touchend', () => {
-            clearTimeout(longPressTimer);
-            if(draggedItem) {
-                if(currentDropTarget) { if(currentDropBefore) currentDropTarget.insertBefore(draggedItem, currentDropBefore); else currentDropTarget.appendChild(draggedItem); }
-                draggedItem.classList.remove('dragging'); draggedItem.style.position = draggedItem.style.left = draggedItem.style.top = '';
-                document.querySelectorAll('.item').forEach(i => i.classList.remove('drop-target-item'));
-                draggedItem = null; document.body.classList.remove('lock-scroll');
+        item.addEventListener('touchend', (e) => {
+            if(!draggedItem) return;
+            if(!isDraggingStarted && !e.target.closest('.del-btn')) {
+                // 短いタップと判定
+                openModal(item.parentElement, item);
+            } else if(isDraggingStarted) {
+                if(currentDropTarget) {
+                    if(currentDropBefore) currentDropTarget.insertBefore(draggedItem, currentDropBefore);
+                    else currentDropTarget.appendChild(draggedItem);
+                }
                 updateAllCalculations(); saveData();
             }
+            item.classList.remove('dragging');
+            item.style.position = item.style.left = item.style.top = '';
+            document.querySelectorAll('.item').forEach(i => i.classList.remove('drop-target-item'));
+            document.body.classList.remove('lock-scroll');
+            draggedItem = null;
         });
 
         const delBtn = document.createElement('button');
-        delBtn.className = 'del-btn'; delBtn.textContent = '×';
-        delBtn.onclick = (e) => { e.stopPropagation(); if(confirm("消去？")){item.remove(); updateAllCalculations(); saveData();} };
-        item.appendChild(document.createElement('div'));
+        delBtn.className = 'del-btn'; delBtn.innerHTML = '&times;';
+        delBtn.onclick = (e) => { 
+            e.stopPropagation(); 
+            if(confirm("このタスクを消去しますか？")){item.remove(); updateAllCalculations(); saveData();} 
+        };
+        
+        item.appendChild(document.createElement('div')); // テキスト用コンテナ
         item.appendChild(delBtn);
         updateItemElement(item, data);
         cell.appendChild(item);
@@ -202,21 +227,14 @@
 
     function updateAllCalculations() {
         let globalTotal = 0;
-        // 未定エリアの計算
-        const blTasks = document.querySelectorAll(`#t-backlog .t-val, #m-backlog .t-val`);
-        let blTotal = 0; blTasks.forEach(t => blTotal += parseInt(t.textContent) || 0);
-        document.getElementById('li-backlog').textContent = `${blTotal}分`;
-        globalTotal += blTotal;
-
-        // 各日付の計算
-        for (let i = 1; i <= 7; i++) {
-            const limit = dayLimits[i];
-            const tasks = document.querySelectorAll(`#t-${i} .t-val, #m-${i} .t-val`);
+        const calcCell = (id, badgeId) => {
+            const tasks = document.querySelectorAll(`#${id} .t-val`);
             let total = 0; tasks.forEach(t => total += parseInt(t.textContent) || 0);
             globalTotal += total;
-            const infoEl = document.getElementById(`li-${i}`);
-            if(!infoEl) continue;
-            if (limit === 0) {
+            const infoEl = document.getElementById(badgeId);
+            if(!infoEl) return;
+            const limit = dayLimits[parseInt(badgeId.split('-')[1])] || 0;
+            if (limit === 0 || id.includes('backlog')) {
                 infoEl.textContent = `計 ${total}分`;
                 infoEl.classList.remove('time-over');
             } else {
@@ -224,8 +242,10 @@
                 infoEl.textContent = diff >= 0 ? `残 ${diff}分` : `不足 ${Math.abs(diff)}分`;
                 if(diff < 0) infoEl.classList.add('time-over'); else infoEl.classList.remove('time-over');
             }
-        }
-        document.getElementById('total-time-display').textContent = `${globalTotal} 分 (${Math.floor(globalTotal/60)}時間${globalTotal%60}分)`;
+        };
+        calcCell('card-backlog', 'li-backlog');
+        for (let i = 1; i <= 7; i++) calcCell(`card-${i}`, `li-${i}`);
+        document.getElementById('total-time-display').textContent = `${globalTotal} 分 (${Math.floor(globalTotal/60)}h ${globalTotal%60}m)`;
     }
 
     function openModal(cell, el = null) { activeCell = cell; editingElement = el; document.getElementById('inputTxt').value = el ? el.querySelector('strong').textContent : ""; document.getElementById('inputTime').value = el ? (el.querySelector('.t-val')?.textContent || "") : ""; document.getElementById('inputPrio').value = el ? el.dataset.prio : "C"; document.getElementById('modal').style.display = 'flex'; }
