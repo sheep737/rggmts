@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKED v1.18 Sorting</title>
+    <title>SKED v1.19 Persistent</title>
     <style>
         :root {
             --prio-A: #ff5252; --prio-B: #ff9800; --prio-C: #2196f3; --prio-D: #4caf50; --prio-E: #9e9e9e;
@@ -37,7 +37,7 @@
         .item-C { border-left-color: var(--prio-C); }
 
         .dragging { position: fixed !important; pointer-events: none; z-index: 9999; width: 90% !important; opacity: 0.8; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
-        .drop-target-item { border-top: 4px solid #2196f3 !important; } /* 並び替えのガイド線 */
+        .drop-target-item { border-top: 4px solid #2196f3 !important; }
 
         .del-btn { position: absolute; right: 5px; top: 5px; border: none; background: #f5f5f5; color: #ccc; border-radius: 4px; width: 22px; height: 22px; }
         .add-btn { width: calc(100% - 20px); margin: 0 10px 10px; padding: 10px; border: 1px dashed #ccc; border-radius: 8px; background: #fff; color: #999; font-size: 0.8rem; }
@@ -50,7 +50,7 @@
 <body>
 
 <header>
-    <div style="font-weight:bold; font-size:1.1rem;">SKED v1.18 Sorting</div>
+    <div style="font-weight:bold; font-size:1.1rem;">SKED v1.19</div>
 </header>
 
 <div class="container" id="board">
@@ -88,6 +88,9 @@
     const dates = ["1/16 (金)", "1/17 (土)", "1/18 (日)", "1/19 (月)", "1/20 (火)", "1/21 (水)", "1/22 (木)"];
     let dayLimits = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 };
     let activeCell = null, editingElement = null, draggedItem = null, longPressTimer = null, currentDropTarget = null, currentDropBefore = null;
+    
+    // 【重要】保存用のキーを固定。これによりコードを書き換えてもデータが残ります。
+    const STORAGE_KEY = 'sked_persistent_data';
 
     function init() {
         const list = document.getElementById('days-list');
@@ -140,15 +143,12 @@
             draggedItem.style.top = (touch.clientY - 25) + 'px';
 
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
-            
-            // カード自動展開
             const hoveredCard = target?.closest('.day-card');
             if(hoveredCard?.classList.contains('collapsed')) hoveredCard.classList.remove('collapsed');
 
             const dropCell = target?.closest('.drop-zone');
             const targetItem = target?.closest('.item');
 
-            // リセット
             document.querySelectorAll('.item').forEach(i => i.classList.remove('drop-target-item'));
             currentDropTarget = null; currentDropBefore = null;
 
@@ -190,8 +190,8 @@
         cell.appendChild(item);
     }
 
-    // 他の関数（updateAllCalculations, setLimit, openModal, closeModal, confirmModal, updateItemElement, saveData, loadData）は前回同様
     function setLimit(idx, e) { e.stopPropagation(); const val = prompt(`上限分:`, dayLimits[idx] || ""); if (val !== null) { dayLimits[idx] = parseInt(val) || 0; saveData(); updateAllCalculations(); } }
+    
     function updateAllCalculations() {
         for (let i = 1; i <= 7; i++) {
             const limit = dayLimits[i];
@@ -203,12 +203,29 @@
             else { const diff = limit - total; infoEl.textContent = diff >= 0 ? `残 ${diff}分` : `不足 ${Math.abs(diff)}分`; infoEl.style.color = diff < 0 ? "#ff5252" : "#666"; }
         }
     }
+
     function openModal(cell, el = null) { activeCell = cell; editingElement = el; document.getElementById('inputTxt').value = el ? el.querySelector('strong').textContent : ""; document.getElementById('inputTime').value = el ? (el.querySelector('.t-val')?.textContent || "") : ""; document.getElementById('inputPrio').value = el ? el.dataset.prio : "C"; document.getElementById('modal').style.display = 'flex'; }
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
     function confirmModal() { const data = { text: document.getElementById('inputTxt').value, time: document.getElementById('inputTime').value, prio: document.getElementById('inputPrio').value }; if(!data.text) return; if(editingElement) updateItemElement(editingElement, data); else addItem(activeCell, data); closeModal(); updateAllCalculations(); saveData(); }
     function updateItemElement(el, data) { el.className = `item item-${data.prio}`; el.dataset.prio = data.prio; el.firstChild.innerHTML = `<strong>${data.text}</strong>${data.time ? `<span style="margin-left:8px; font-size:0.75rem; color:#888;">⏳<span class="t-val">${data.time}</span>分</span>` : ''}`; }
-    function saveData() { const data = { items: [], limits: dayLimits }; document.querySelectorAll('.item').forEach(item => { if(!item.parentElement) return; data.items.push({ parentID: item.parentElement.id, text: item.querySelector('strong').textContent, time: item.querySelector('.t-val')?.textContent || "", prio: item.dataset.prio }); }); localStorage.setItem('scheduleData_v1.18', JSON.stringify(data)); }
-    function loadData() { const saved = localStorage.getItem('scheduleData_v1.18'); if (!saved) return; const parsed = JSON.parse(saved); if(parsed.limits) dayLimits = parsed.limits; parsed.items.forEach(d => { const cell = document.getElementById(d.parentID); if (cell) addItem(cell, d); }); }
+    
+    function saveData() { 
+        const data = { items: [], limits: dayLimits }; 
+        document.querySelectorAll('.item').forEach(item => { 
+            if(!item.parentElement) return; 
+            data.items.push({ parentID: item.parentElement.id, text: item.querySelector('strong').textContent, time: item.querySelector('.t-val')?.textContent || "", prio: item.dataset.prio }); 
+        }); 
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); 
+    }
+    
+    function loadData() { 
+        // 旧バージョンのデータ（v1.18以前）があれば一度だけ引き継ぐ
+        let saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('scheduleData_v1.18');
+        if (!saved) return;
+        const parsed = JSON.parse(saved);
+        if(parsed.limits) dayLimits = parsed.limits;
+        parsed.items.forEach(d => { const cell = document.getElementById(d.parentID); if (cell) addItem(cell, d); });
+    }
     window.onload = init;
 </script>
 </body>
