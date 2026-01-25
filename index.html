@@ -1,223 +1,167 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SKED v1.23 Memo</title>
-
-<style>
-:root{
-    --prio-A:#ff5252;--prio-B:#ff9800;--prio-C:#2196f3;--prio-D:#4caf50;--prio-E:#9e9e9e;
-    --bg-color:#f0f2f5;--card-bg:#fff;
-    --menu-width:85%;--max-menu-width:320px;
-}
-*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
-body{margin:0;font-family:-apple-system,sans-serif;background:var(--bg-color);padding-bottom:50px;overflow-x:hidden}
-.lock-scroll{overflow:hidden!important}
-
-header{background:#fff;padding:10px 15px;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;height:55px}
-.logo{font-weight:bold;font-size:1.1rem}
-.ver{font-size:.7rem;background:#eee;padding:2px 6px;border-radius:4px;color:#666;margin-left:5px}
-
-.menu-btn{width:40px;height:40px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;z-index:2100}
-.menu-btn span{width:24px;height:2px;background:#333;border-radius:2px}
-
-#side-menu{position:fixed;top:0;right:calc(-1*var(--max-menu-width));width:var(--menu-width);max-width:var(--max-menu-width);height:100%;background:#fff;z-index:2000;transition:.3s;box-shadow:-5px 0 15px rgba(0,0,0,.1);display:flex;flex-direction:column}
-#side-menu.open{right:0}
-#menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1500;display:none;opacity:0;transition:.3s}
-#menu-overlay.show{display:block;opacity:1}
-
-.menu-inner{padding:20px;flex:1;overflow-y:auto}
-.memo-area{width:100%;height:250px;padding:12px;border-radius:10px;font-size:.95rem;line-height:1.5;background:#fff9c4;border:none;box-shadow:inset 0 2px 4px rgba(0,0,0,.05)}
-
-.container{padding:10px}
-.day-card{background:var(--card-bg);border-radius:12px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.05);overflow:hidden}
-.day-header{background:#f8f9fa;padding:12px 15px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
-.day-title{font-weight:bold;font-size:.95rem}
-.day-title::before{content:'▼';margin-right:8px;font-size:.7rem;transition:.2s}
-.collapsed .day-title::before{transform:rotate(-90deg)}
-.time-badge{font-size:.75rem;font-weight:bold;padding:4px 10px;border-radius:20px;background:#e3f2fd;color:#1976d2}
-.time-over{background:#ffebee;color:#ef5350}
-.collapsed .day-content{display:none}
-
-.drop-zone{padding:5px 10px 10px;min-height:45px}
-.item{position:relative;padding:12px;margin:8px 0;border-radius:8px;font-size:.9rem;background:#fff;border:1px solid #eee;border-left:6px solid #ccc;box-shadow:0 1px 4px rgba(0,0,0,.1);touch-action:none}
-.dragging{position:fixed!important;pointer-events:none;z-index:9999;width:90%!important;opacity:.8}
-.drop-target-item{border-top:4px solid #2196f3!important}
-.del-btn{position:absolute;right:0;top:0;border:none;background:transparent;color:#ddd;width:35px;height:100%;font-size:1.2rem}
-
-.add-btn{width:calc(100% - 20px);margin:0 10px 10px;padding:12px;border:1px dashed #ccc;border-radius:8px;background:#fff;color:#999}
-
-#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;align-items:center;justify-content:center;padding:20px}
-.modal-content{background:#fff;padding:20px;border-radius:16px;width:100%;max-width:400px}
-.modal-content input,.modal-content select{width:100%;padding:14px;margin:10px 0;border:1px solid #ddd;border-radius:8px}
-</style>
-</head>
-
-<body>
-
-<header>
-    <div class="logo">SKED <span class="ver">v1.23</span></div>
-    <div class="menu-btn" onclick="toggleMenu()"><span></span><span></span><span></span></div>
-</header>
-
-<div id="menu-overlay" onclick="toggleMenu()"></div>
-<div id="side-menu">
-    <div class="menu-inner">
-        <h3>自由なメモ</h3>
-        <textarea id="free-memo" class="memo-area" placeholder="ここになんでもメモ（自動保存）" oninput="saveData()"></textarea>
-
-        <h3 style="margin-top:30px">今週の統計</h3>
-        <div style="background:#f8f9fa;padding:15px;border-radius:10px;border:1px solid #eee">
-            <div style="font-size:.75rem;color:#888">全タスク合計時間</div>
-            <div id="total-time-display" style="font-size:1.1rem;font-weight:bold;color:#2196f3">0 分</div>
-        </div>
-
-        <div onclick="if(confirm('全て削除しますか？')){localStorage.clear();location.reload()}"
-             style="color:#ff5252;padding:20px 0;margin-top:20px;border-top:1px solid #eee;font-size:.85rem;cursor:pointer">
-            🗑 データを全て消去
-        </div>
-    </div>
-</div>
-
-<div class="container">
-    <div class="day-card collapsed" id="card-backlog">
-        <div class="day-header" onclick="toggleFold('backlog',event)" style="background:#cfd8dc">
-            <span class="day-title">未定メモ（タスク）</span>
-            <span class="time-badge" id="li-backlog">0分</span>
-        </div>
-        <div class="day-content">
-            <div id="t-backlog" class="drop-zone" data-type="task"></div>
-            <button class="add-btn" onclick="openModal(document.getElementById('t-backlog'))">+ 追加</button>
-        </div>
-    </div>
-    <div id="days-list"></div>
-</div>
-
-<div id="modal">
-    <div class="modal-content">
-        <h3>タスク編集</h3>
-        <input id="inputTxt" placeholder="内容">
-        <input id="inputTime" type="number" placeholder="時間（分）">
-        <select id="inputPrio">
-            <option>A</option><option>B</option><option selected>C</option><option>D</option><option>E</option>
-        </select>
-        <div style="display:flex;gap:10px">
-            <button onclick="closeModal()" style="flex:1">戻る</button>
-            <button onclick="confirmModal()" style="flex:1;background:#2196f3;color:#fff">保存</button>
-        </div>
-    </div>
-</div>
-
 <script>
-const STORAGE_KEY='sked_persistent_data';
-const dates=["1/19(月)","1/20(火)","1/21(水)","1/22(木)","1/23(金)","1/24(土)","1/25(日)"];
-let dayLimits={},foldState={},menuOpen=false;
-let activeCell=null,editingElement=null;
+const STORAGE_KEY = 'sked_persistent_data';
+const dates = ["1/19(月)","1/20(火)","1/21(水)","1/22(木)","1/23(金)","1/24(土)","1/25(日)"];
 
+let foldState = {};
+let menuOpen = false;
+let activeCell = null;
+let editingElement = null;
+
+/* ===== MENU ===== */
 function toggleMenu(){
-    const m=document.getElementById('side-menu');
-    const o=document.getElementById('menu-overlay');
-    m.classList.toggle('open');o.classList.toggle('show');
-    menuOpen=m.classList.contains('open');
+    const menu = document.getElementById('side-menu');
+    const overlay = document.getElementById('menu-overlay');
+
+    menuOpen = !menuOpen;
+    menu.classList.toggle('open', menuOpen);
+    overlay.classList.toggle('show', menuOpen);
+
     saveData();
 }
 
-function toggleFold(id,e){
-    if(e.target.closest('.time-badge'))return;
-    const card=document.getElementById(`card-${id}`);
-    card.classList.toggle('collapsed');
-    foldState[id]=card.classList.contains('collapsed');
+/* ===== FOLD ===== */
+function toggleFold(id, e){
+    if(e.target.closest('.time-badge')) return;
+
+    const card = document.getElementById(`card-${id}`);
+    const collapsed = !card.classList.contains('collapsed');
+
+    card.classList.toggle('collapsed', collapsed);
+    foldState[id] = collapsed;
+
     saveData();
 }
 
+/* ===== INIT ===== */
 function init(){
-    const list=document.getElementById('days-list');
+    const list = document.getElementById('days-list');
     dates.forEach((d,i)=>{
-        const id=i+1;
-        list.insertAdjacentHTML('beforeend',`
+        const id = i + 1;
+        list.insertAdjacentHTML('beforeend', `
         <div class="day-card" id="card-${id}">
             <div class="day-header" onclick="toggleFold(${id},event)">
                 <span class="day-title">${d}</span>
-                <span class="time-badge" id="li-${id}">計0分</span>
+                <span class="time-badge">計0分</span>
             </div>
             <div class="day-content">
-                <div id="t-${id}" class="drop-zone" data-type="task"></div>
+                <div id="t-${id}" class="drop-zone"></div>
                 <button class="add-btn" onclick="openModal(document.getElementById('t-${id}'))">+ 追加</button>
             </div>
         </div>`);
     });
-    loadData();updateAll();
+
+    loadData();
+    updateAll();
 }
 
-function openModal(cell,el=null){
-    activeCell=cell;editingElement=el;
-    inputTxt.value=el?el.querySelector('strong').textContent:"";
-    inputTime.value=el?el.querySelector('.t-val').textContent:"";
-    inputPrio.value=el?el.dataset.prio:"C";
-    modal.style.display='flex';
-}
-function closeModal(){modal.style.display='none'}
+/* ===== MODAL ===== */
+function openModal(cell, el=null){
+    activeCell = cell;
+    editingElement = el;
 
+    document.getElementById('inputTxt').value =
+        el ? el.querySelector('strong').textContent : "";
+    document.getElementById('inputTime').value =
+        el ? el.querySelector('.t-val').textContent : "";
+    document.getElementById('inputPrio').value =
+        el ? el.dataset.prio : "C";
+
+    document.getElementById('modal').style.display = 'flex';
+}
+function closeModal(){
+    document.getElementById('modal').style.display = 'none';
+}
 function confirmModal(){
-    if(!inputTxt.value)return;
-    if(editingElement)updateItem(editingElement);
-    else addItem(activeCell);
-    closeModal();updateAll();saveData();
+    if(!document.getElementById('inputTxt').value) return;
+
+    editingElement ? updateItem(editingElement) : addItem(activeCell);
+
+    closeModal();
+    updateAll();
+    saveData();
 }
 
+/* ===== TASK ===== */
 function addItem(cell){
-    const el=document.createElement('div');
-    el.className='item';
+    const el = document.createElement('div');
+    el.className = 'item';
     updateItem(el);
     cell.appendChild(el);
 }
-
 function updateItem(el){
-    el.dataset.prio=inputPrio.value;
-    el.innerHTML=`<strong>${inputTxt.value}</strong>
-    <span style="margin-left:8px;font-size:.75rem;color:#888">⏳<span class="t-val">${inputTime.value||0}</span>分</span>`;
+    const txt = document.getElementById('inputTxt').value;
+    const time = document.getElementById('inputTime').value || 0;
+    const prio = document.getElementById('inputPrio').value;
+
+    el.dataset.prio = prio;
+    el.innerHTML = `
+        <strong>${txt}</strong>
+        <span style="margin-left:8px;font-size:.75rem;color:#888">
+            ⏳<span class="t-val">${time}</span>分
+        </span>`;
 }
 
+/* ===== CALC ===== */
 function updateAll(){
-    let total=0;
-    document.querySelectorAll('.t-val').forEach(v=>total+=+v.textContent||0);
-    total-time-display.textContent=`${total} 分`;
+    let total = 0;
+    document.querySelectorAll('.t-val').forEach(v => total += +v.textContent || 0);
+    document.getElementById('total-time-display').textContent = `${total} 分`;
 }
 
+/* ===== STORAGE ===== */
 function saveData(){
-    const data={items:[],foldState,menuOpen,freeMemo:free-memo.value};
+    const data = {
+        items: [],
+        foldState,
+        menuOpen,
+        freeMemo: document.getElementById('free-memo').value
+    };
+
     document.querySelectorAll('.item').forEach(i=>{
         data.items.push({
-            p:i.parentElement.id,
-            t:i.querySelector('strong').textContent,
-            m:i.querySelector('.t-val').textContent,
-            pr:i.dataset.prio
+            parent: i.parentElement.id,
+            text: i.querySelector('strong').textContent,
+            time: i.querySelector('.t-val').textContent,
+            prio: i.dataset.prio
         });
     });
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
 function loadData(){
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(!raw)return;
-    const d=JSON.parse(raw);
-    foldState=d.foldState||{};
-    Object.keys(foldState).forEach(id=>{
-        if(foldState[id])document.getElementById(`card-${id}`)?.classList.add('collapsed');
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+
+    const d = JSON.parse(raw);
+
+    /* menu */
+    if(d.menuOpen){
+        menuOpen = true;
+        document.getElementById('side-menu').classList.add('open');
+        document.getElementById('menu-overlay').classList.add('show');
+    }
+
+    /* memo */
+    document.getElementById('free-memo').value = d.freeMemo || "";
+
+    /* fold */
+    foldState = d.foldState || {};
+    Object.entries(foldState).forEach(([id,val])=>{
+        if(val) document.getElementById(`card-${id}`)?.classList.add('collapsed');
     });
-    if(d.menuOpen)toggleMenu();
-    free-memo.value=d.freeMemo||"";
+
+    /* items */
     d.items?.forEach(i=>{
-        const cell=document.getElementById(i.p);
+        const cell = document.getElementById(i.parent);
         if(cell){
-            inputTxt.value=i.t;inputTime.value=i.m;inputPrio.value=i.pr;
+            document.getElementById('inputTxt').value = i.text;
+            document.getElementById('inputTime').value = i.time;
+            document.getElementById('inputPrio').value = i.prio;
             addItem(cell);
         }
     });
 }
 
-window.onload=init;
+window.onload = init;
 </script>
-</body>
-</html>
