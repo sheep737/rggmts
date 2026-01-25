@@ -1,167 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Task Manager 完全版</title>
+
+<style>
+body{
+    margin:0;
+    font-family:system-ui, sans-serif;
+    background:#0f172a;
+    color:#e5e7eb;
+}
+header{
+    height:48px;
+    background:#020617;
+    display:flex;
+    align-items:center;
+    padding:0 12px;
+}
+button{
+    background:#334155;
+    color:#fff;
+    border:none;
+    padding:6px 10px;
+    border-radius:4px;
+}
+#container{padding:10px}
+
+/* side menu */
+#menu-overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.4);
+    display:none;
+}
+#menu-overlay.show{display:block}
+#side-menu{
+    position:fixed;
+    top:0; right:-260px;
+    width:260px; height:100%;
+    background:#020617;
+    transition:.3s;
+    padding:10px;
+}
+#side-menu.open{right:0}
+
+/* cards */
+.day-card{
+    background:#020617;
+    margin-bottom:10px;
+    border-radius:6px;
+}
+.day-header{
+    padding:10px;
+    display:flex;
+    justify-content:space-between;
+    cursor:pointer;
+}
+.day-content{padding:10px}
+.day-card.collapsed .day-content{display:none}
+
+.item{
+    padding:6px;
+    background:#1e293b;
+    margin-bottom:6px;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+#modal{
+    position:fixed; inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,.5);
+}
+#modal > div{
+    background:#020617;
+    padding:16px;
+    border-radius:6px;
+    width:260px;
+}
+input,select,textarea{
+    width:100%;
+    margin-bottom:8px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <button onclick="toggleMenu()">☰</button>
+    <div style="margin-left:12px">
+        合計: <span id="total-time-display">0 分</span>
+    </div>
+</header>
+
+<div id="container">
+    <div id="days-list"></div>
+</div>
+
+<div id="menu-overlay" onclick="toggleMenu()"></div>
+<div id="side-menu">
+    <h3>メモ</h3>
+    <textarea id="free-memo" rows="8" oninput="saveData()"></textarea>
+</div>
+
+<div id="modal">
+    <div>
+        <input id="inputTxt" placeholder="内容">
+        <input id="inputTime" type="number" placeholder="分">
+        <select id="inputPrio">
+            <option>A</option><option>B</option><option>C</option>
+        </select>
+        <button onclick="confirmModal()">OK</button>
+        <button onclick="closeModal()">取消</button>
+    </div>
+</div>
+
 <script>
-const STORAGE_KEY = 'sked_persistent_data';
-const dates = ["1/19(月)","1/20(火)","1/21(水)","1/22(木)","1/23(金)","1/24(土)","1/25(日)"];
+const STORAGE_KEY = 'task_manager_complete';
+const dates = ["月","火","水","木","金","土","日"];
 
 let foldState = {};
 let menuOpen = false;
 let activeCell = null;
 let editingElement = null;
 
-/* ===== MENU ===== */
+/* ---------- UI ---------- */
 function toggleMenu(){
-    const menu = document.getElementById('side-menu');
-    const overlay = document.getElementById('menu-overlay');
-
     menuOpen = !menuOpen;
-    menu.classList.toggle('open', menuOpen);
-    overlay.classList.toggle('show', menuOpen);
-
+    document.getElementById('side-menu').classList.toggle('open', menuOpen);
+    document.getElementById('menu-overlay').classList.toggle('show', menuOpen);
     saveData();
 }
-
-/* ===== FOLD ===== */
-function toggleFold(id, e){
-    if(e.target.closest('.time-badge')) return;
-
+function toggleFold(id){
     const card = document.getElementById(`card-${id}`);
     const collapsed = !card.classList.contains('collapsed');
-
     card.classList.toggle('collapsed', collapsed);
     foldState[id] = collapsed;
-
     saveData();
 }
 
-/* ===== INIT ===== */
-function init(){
-    const list = document.getElementById('days-list');
-    dates.forEach((d,i)=>{
-        const id = i + 1;
-        list.insertAdjacentHTML('beforeend', `
-        <div class="day-card" id="card-${id}">
-            <div class="day-header" onclick="toggleFold(${id},event)">
-                <span class="day-title">${d}</span>
-                <span class="time-badge">計0分</span>
-            </div>
-            <div class="day-content">
-                <div id="t-${id}" class="drop-zone"></div>
-                <button class="add-btn" onclick="openModal(document.getElementById('t-${id}'))">+ 追加</button>
-            </div>
-        </div>`);
-    });
-
-    loadData();
-    updateAll();
-}
-
-/* ===== MODAL ===== */
+/* ---------- modal ---------- */
 function openModal(cell, el=null){
     activeCell = cell;
     editingElement = el;
 
-    document.getElementById('inputTxt').value =
-        el ? el.querySelector('strong').textContent : "";
-    document.getElementById('inputTime').value =
-        el ? el.querySelector('.t-val').textContent : "";
-    document.getElementById('inputPrio').value =
-        el ? el.dataset.prio : "C";
+    inputTxt.value = el ? el.querySelector('strong').textContent : "";
+    inputTime.value = el ? el.querySelector('.t-val').textContent : "";
+    inputPrio.value = el ? el.dataset.prio : "C";
 
-    document.getElementById('modal').style.display = 'flex';
+    modal.style.display = 'flex';
 }
-function closeModal(){
-    document.getElementById('modal').style.display = 'none';
-}
+function closeModal(){ modal.style.display = 'none'; }
 function confirmModal(){
-    if(!document.getElementById('inputTxt').value) return;
-
+    if(!inputTxt.value) return;
     editingElement ? updateItem(editingElement) : addItem(activeCell);
-
     closeModal();
     updateAll();
     saveData();
 }
 
-/* ===== TASK ===== */
+/* ---------- items ---------- */
 function addItem(cell){
     const el = document.createElement('div');
     el.className = 'item';
+    el.onclick = ()=>openModal(cell,el);
     updateItem(el);
     cell.appendChild(el);
 }
 function updateItem(el){
-    const txt = document.getElementById('inputTxt').value;
-    const time = document.getElementById('inputTime').value || 0;
-    const prio = document.getElementById('inputPrio').value;
-
-    el.dataset.prio = prio;
+    el.dataset.prio = inputPrio.value;
     el.innerHTML = `
-        <strong>${txt}</strong>
-        <span style="margin-left:8px;font-size:.75rem;color:#888">
-            ⏳<span class="t-val">${time}</span>分
+        <strong>${inputTxt.value}</strong>
+        <span style="margin-left:6px;font-size:.8em">
+            ⏳<span class="t-val">${inputTime.value||0}</span>分
         </span>`;
 }
 
-/* ===== CALC ===== */
+/* ---------- calc ---------- */
 function updateAll(){
     let total = 0;
-    document.querySelectorAll('.t-val').forEach(v => total += +v.textContent || 0);
+    document.querySelectorAll('.t-val')
+        .forEach(v=> total += +v.textContent||0);
     document.getElementById('total-time-display').textContent = `${total} 分`;
 }
 
-/* ===== STORAGE ===== */
+/* ---------- storage ---------- */
 function saveData(){
     const data = {
-        items: [],
-        foldState,
         menuOpen,
-        freeMemo: document.getElementById('free-memo').value
+        foldState,
+        freeMemo: document.getElementById('free-memo').value,
+        items:[]
     };
-
     document.querySelectorAll('.item').forEach(i=>{
         data.items.push({
-            parent: i.parentElement.id,
-            text: i.querySelector('strong').textContent,
-            time: i.querySelector('.t-val').textContent,
-            prio: i.dataset.prio
+            parent:i.parentElement.id,
+            text:i.querySelector('strong').textContent,
+            time:i.querySelector('.t-val').textContent,
+            prio:i.dataset.prio
         });
     });
-
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
-
 function loadData(){
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return;
-
     const d = JSON.parse(raw);
 
-    /* menu */
-    if(d.menuOpen){
-        menuOpen = true;
-        document.getElementById('side-menu').classList.add('open');
-        document.getElementById('menu-overlay').classList.add('show');
-    }
+    menuOpen = d.menuOpen;
+    if(menuOpen) toggleMenu();
 
-    /* memo */
     document.getElementById('free-memo').value = d.freeMemo || "";
-
-    /* fold */
     foldState = d.foldState || {};
-    Object.entries(foldState).forEach(([id,val])=>{
-        if(val) document.getElementById(`card-${id}`)?.classList.add('collapsed');
+
+    Object.entries(foldState).forEach(([id,v])=>{
+        if(v) document.getElementById(`card-${id}`)?.classList.add('collapsed');
     });
 
-    /* items */
     d.items?.forEach(i=>{
-        const cell = document.getElementById(i.parent);
-        if(cell){
-            document.getElementById('inputTxt').value = i.text;
-            document.getElementById('inputTime').value = i.time;
-            document.getElementById('inputPrio').value = i.prio;
-            addItem(cell);
-        }
+        inputTxt.value=i.text;
+        inputTime.value=i.time;
+        inputPrio.value=i.prio;
+        addItem(document.getElementById(i.parent));
     });
 }
 
+/* ---------- init ---------- */
+function init(){
+    const list = document.getElementById('days-list');
+    dates.forEach((d,i)=>{
+        const id=i+1;
+        list.insertAdjacentHTML('beforeend',`
+        <div class="day-card" id="card-${id}">
+            <div class="day-header" onclick="toggleFold(${id})">
+                <span>${d}</span><span>▼</span>
+            </div>
+            <div class="day-content">
+                <div id="cell-${id}"></div>
+                <button onclick="openModal(document.getElementById('cell-${id}'))">＋追加</button>
+            </div>
+        </div>`);
+    });
+    loadData();
+    updateAll();
+}
 window.onload = init;
 </script>
+</body>
+</html>
